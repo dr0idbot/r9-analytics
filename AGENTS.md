@@ -140,6 +140,22 @@ grep -r "import streamlit" shared/
 # Must return nothing
 ```
 
+### Always use flex layout for metric cards
+
+When displaying metric cards, use flex layout with auto-wrapping instead of `st.columns`:
+
+```python
+# GOOD
+with st.container(horizontal=True, wrap=True, gap="small"):
+    st.metric("Label", "value", border=True, width="content")
+
+# BAD — not responsive
+c1, c2, c3 = st.columns(3)
+c1.metric("Label", "value")
+```
+
+See `GUIDELINES.md` §7.7 for full rules.
+
 ### Always use type hints
 
 Every function must have full type annotations. If you see a function without them, add them.

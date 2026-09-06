@@ -93,11 +93,12 @@ if detail is None:
 # ------------------------------------------------------------------ #
 # Portfolio info
 # ------------------------------------------------------------------ #
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Name", detail["name"])
-c2.metric("Currency", detail["currency"])
-c3.metric("Securities", len(detail["securities"]))
-c4.metric("Total Value", f"{detail['currency']} {detail['total_value']:,.2f}")
+with st.container(border=True):
+    with st.container(horizontal=True, wrap=True, gap="small"):
+        st.metric("Name", detail["name"], border=True, width="content")
+        st.metric("Currency", detail["currency"], border=True, width="content")
+        st.metric("Securities", len(detail["securities"]), border=True, width="content")
+        st.metric("Total Value", f"{detail['currency']} {detail['total_value']:,.2f}", border=True, width="content")
 
 # ------------------------------------------------------------------ #
 # Tabs

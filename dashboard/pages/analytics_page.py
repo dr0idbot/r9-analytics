@@ -88,13 +88,14 @@ currency_map: dict[str, str] = {t["ticker"]: t.get("currency") or "USD" for t in
 # Overview metrics
 # ------------------------------------------------------------------ #
 st.subheader("Database Overview")
-c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric("Tickers", summary["total_tickers"])
-c2.metric("Candles", f"{summary['total_candles']:,}")
-c3.metric("Dividends", f"{summary['total_dividends']:,}")
-c4.metric("Splits", f"{summary['total_splits']:,}")
-c5.metric("From", str(summary["min_date"]))
-c6.metric("To", str(summary["max_date"]))
+with st.container(border=True):
+    with st.container(horizontal=True, wrap=True, gap="small"):
+        st.metric("Tickers", summary["total_tickers"], border=True, width="content")
+        st.metric("Candles", f"{summary['total_candles']:,}", border=True, width="content")
+        st.metric("Dividends", f"{summary['total_dividends']:,}", border=True, width="content")
+        st.metric("Splits", f"{summary['total_splits']:,}", border=True, width="content")
+        st.metric("From", str(summary["min_date"]), border=True, width="content")
+        st.metric("To", str(summary["max_date"]), border=True, width="content")
 
 st.markdown("---")
 

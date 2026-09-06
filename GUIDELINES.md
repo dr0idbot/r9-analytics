@@ -285,6 +285,27 @@ with st.status("Syncing tickers...", expanded=True) as status:
 
 All charts use Plotly via `st.plotly_chart()`. Chart-building functions live in `dashboard/components/` and accept DataFrames/dicts. They return nothing — they call `st.plotly_chart()` directly.
 
+### 7.7 Layout — Metric Cards
+
+Use flex layout with auto-wrapping for metric cards. This provides consistent card sizes and responsive behavior across screen sizes.
+
+```python
+# GOOD: Flex layout with auto-wrapping
+with st.container(border=True):
+    st.markdown("**Section Title**")
+    with st.container(horizontal=True, wrap=True, gap="small"):
+        st.metric("Metric 1", "value", border=True, width="content")
+        st.metric("Metric 2", "value", border=True, width="content")
+        st.metric("Metric 3", "value", border=True, width="content")
+        # Cards auto-wrap to next row when viewport is too narrow
+```
+
+**Rules:**
+- Always use `width="content"` on `st.metric` for fixed-width cards
+- Always use `border=True` on both `st.container` and `st.metric` for card styling
+- Use `st.container(horizontal=True, wrap=True, gap="small")` for flex layout
+- Never use `st.columns` for metric grids — flex layout is preferred for responsive behavior
+
 ---
 
 ## 8. Testing

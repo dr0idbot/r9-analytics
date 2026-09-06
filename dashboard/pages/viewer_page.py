@@ -126,11 +126,12 @@ except Exception as e:
 
 if ticker_detail:
     with st.expander("Ticker Info", expanded=False):
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Name", ticker_detail.get("name", "N/A"))
-        c2.metric("Sector", ticker_detail.get("sector", "N/A"))
-        c3.metric("Exchange", ticker_detail.get("exchange_name", "N/A"))
-        c4.metric("Country", ticker_detail.get("country", "N/A"))
+        with st.container(border=True):
+            with st.container(horizontal=True, wrap=True, gap="small"):
+                st.metric("Name", ticker_detail.get("name", "N/A"), border=True, width="content")
+                st.metric("Sector", ticker_detail.get("sector", "N/A"), border=True, width="content")
+                st.metric("Exchange", ticker_detail.get("exchange_name", "N/A"), border=True, width="content")
+                st.metric("Country", ticker_detail.get("country", "N/A"), border=True, width="content")
 
 tab_candles, tab_dividends, tab_splits = st.tabs(["Candles", "Dividends", "Splits"])
 

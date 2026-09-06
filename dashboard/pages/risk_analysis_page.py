@@ -67,34 +67,30 @@ except Exception as e:
 st.subheader(f"Metrics: {selected_ticker}")
 
 # Phase 1: Risk
-st.markdown("**Risk Metrics**")
-col1, col2, col3, col3b = st.columns(4)
-col1.metric("Realized Volatility", f"{risk['realized_volatility'] * 100:.2f}%")
-col2.metric("Parkinson Volatility", f"{risk['parkinson_volatility'] * 100:.2f}%")
-col3.metric("Garman-Klass Volatility", f"{risk['garman_klass_volatility'] * 100:.2f}%")
-col3b.metric("Max Drawdown", f"{risk['max_drawdown'] * 100:.2f}%")
-
-col4, col5, col6 = st.columns(3)
-col4.metric("Historical VaR (95%)", f"{risk['historical_var_95'] * 100:.2f}%")
-col5.metric("Parametric VaR (95%)", f"{risk['parametric_var_95'] * 100:.2f}%")
-col6.metric("CVaR (95%)", f"{risk['cvar_95'] * 100:.2f}%")
-
-col7, col8 = st.columns(2)
-col7.metric("Semi-Deviation", f"{risk['semi_deviation'] * 100:.2f}%")
-col8.metric("Downside Ratio", f"{risk['downside_ratio']:.4f}")
+with st.container(border=True):
+    st.markdown("**Risk Metrics**")
+    with st.container(horizontal=True, wrap=True, gap="small"):
+        st.metric("Realized Volatility", f"{risk['realized_volatility'] * 100:.2f}%", border=True, width="content")
+        st.metric("Parkinson Volatility", f"{risk['parkinson_volatility'] * 100:.2f}%", border=True, width="content")
+        st.metric("Garman-Klass Volatility", f"{risk['garman_klass_volatility'] * 100:.2f}%", border=True, width="content")
+        st.metric("Max Drawdown", f"{risk['max_drawdown'] * 100:.2f}%", border=True, width="content")
+        st.metric("Historical VaR (95%)", f"{risk['historical_var_95'] * 100:.2f}%", border=True, width="content")
+        st.metric("Parametric VaR (95%)", f"{risk['parametric_var_95'] * 100:.2f}%", border=True, width="content")
+        st.metric("CVaR (95%)", f"{risk['cvar_95'] * 100:.2f}%", border=True, width="content")
+        st.metric("Semi-Deviation", f"{risk['semi_deviation'] * 100:.2f}%", border=True, width="content")
+        st.metric("Downside Ratio", f"{risk['downside_ratio']:.4f}", border=True, width="content")
 
 # Phase 2: Risk-Adjusted Return
-st.markdown("**Risk-Adjusted Return Metrics**")
-ra1, ra2, ra3, ra4 = st.columns(4)
-ra1.metric("Sharpe Ratio", f"{risk['sharpe_ratio']:.4f}")
-ra2.metric("Sortino Ratio", f"{risk['sortino_ratio']:.4f}")
-ra3.metric("Calmar Ratio", f"{risk['calmar_ratio']:.4f}")
-ra4.metric("Omega Ratio", f"{risk['omega_ratio']:.4f}")
-
-ra5, ra6, ra7 = st.columns(3)
-ra5.metric("Treynor Ratio", f"{risk['treynor_ratio']:.4f}")
-ra6.metric("Information Ratio", f"{risk['information_ratio']:.4f}")
-ra7.metric("Beta", f"{risk['beta']:.4f}")
+with st.container(border=True):
+    st.markdown("**Risk-Adjusted Return Metrics**")
+    with st.container(horizontal=True, wrap=True, gap="small"):
+        st.metric("Sharpe Ratio", f"{risk['sharpe_ratio']:.4f}", border=True, width="content")
+        st.metric("Sortino Ratio", f"{risk['sortino_ratio']:.4f}", border=True, width="content")
+        st.metric("Calmar Ratio", f"{risk['calmar_ratio']:.4f}", border=True, width="content")
+        st.metric("Omega Ratio", f"{risk['omega_ratio']:.4f}", border=True, width="content")
+        st.metric("Treynor Ratio", f"{risk['treynor_ratio']:.4f}", border=True, width="content")
+        st.metric("Information Ratio", f"{risk['information_ratio']:.4f}", border=True, width="content")
+        st.metric("Beta", f"{risk['beta']:.4f}", border=True, width="content")
 
 st.markdown("---")
 
