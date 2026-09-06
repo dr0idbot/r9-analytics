@@ -120,15 +120,17 @@ with tab_compare:
         key="compare_tickers",
     )
 
-    compare_range = st.checkbox("Filter date range", value=False, key="compare_range")
+    today = date.today()
+    default_start = today - pd.Timedelta(days=90)
+    compare_range = st.checkbox("Filter date range", value=True, key="compare_range")
     start_date: date | None = None
     end_date: date | None = None
     if compare_range:
         col1, col2 = st.columns(2)
         with col1:
-            start_date = st.date_input("Start", value=date(2023, 1, 1), key="cmp_start")
+            start_date = st.date_input("Start", value=default_start, key="cmp_start")
         with col2:
-            end_date = st.date_input("End", value=date.today(), key="cmp_end")
+            end_date = st.date_input("End", value=today, key="cmp_end")
 
     if not selected_tickers:
         st.info("Select at least one ticker above.")
@@ -146,26 +148,28 @@ with tab_compare:
         if prices_df.empty:
             st.info("No data found for selected tickers.")
         else:
-            # Forward-fill so later-starting tickers begin at their first available price
             filled = prices_df.ffill().dropna(axis=1, how="all")
 
             if filled.empty:
                 st.info("No overlapping data for selected tickers.")
             else:
-                # --- Line chart ---
+                # Normalize to base 100
                 normalized = (filled / filled.iloc[0]) * 100
-                fig = go.Figure()
-                for ticker in normalized.columns:
-                    fig.add_trace(go.Scatter(
-                        x=normalized.index,
-                        y=normalized[ticker],
-                        mode="lines",
-                        name=ticker,
-                    ))
-                fig.update_layout(
+
+                # Melt to long format for px.line (each ticker becomes a separate line)
+                melted = normalized.reset_index().melt(
+                    id_vars="trade_date", var_name="Ticker", value_name="Price"
+                )
+
+                fig = px.line(
+                    melted,
+                    x="trade_date",
+                    y="Price",
+                    color="Ticker",
                     title="Normalized Price Performance (Base = 100)",
-                    xaxis_title="Date",
-                    yaxis_title="Normalized Price",
+                    labels={"trade_date": "Date", "Price": "Normalized Price"},
+                )
+                fig.update_layout(
                     height=500,
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 )
