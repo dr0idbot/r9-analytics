@@ -60,6 +60,11 @@ with tab_roster:
                 }
                 for t in tickers
             ]),
+            column_config={
+                "Candles": st.column_config.NumberColumn(alignment="right"),
+                "Dividends": st.column_config.NumberColumn(alignment="right"),
+                "Splits": st.column_config.NumberColumn(alignment="right"),
+            },
             width="stretch",
             hide_index=True,
         )

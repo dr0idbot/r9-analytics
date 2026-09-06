@@ -145,6 +145,13 @@ with tab_candles:
             raw["trade_date"] = raw["trade_date"].dt.strftime("%Y-%m-%d")
             styled_df(
                 raw,
+                column_config={
+                    "open": st.column_config.NumberColumn(alignment="right"),
+                    "high": st.column_config.NumberColumn(alignment="right"),
+                    "low": st.column_config.NumberColumn(alignment="right"),
+                    "close": st.column_config.NumberColumn(alignment="right"),
+                    "volume": st.column_config.NumberColumn(alignment="right"),
+                },
                 width="stretch",
                 hide_index=True,
             )
@@ -156,6 +163,9 @@ with tab_dividends:
         st.metric("Total Dividends", len(dividends))
         styled_df(
             pd.DataFrame([{"Date": d["pay_date"], "Amount": d["amount"]} for d in dividends]),
+            column_config={
+                "Amount": st.column_config.NumberColumn(alignment="right"),
+            },
             width="stretch",
             hide_index=True,
         )
@@ -167,6 +177,9 @@ with tab_splits:
         st.metric("Total Splits", len(splits))
         styled_df(
             pd.DataFrame([{"Date": s["split_date"], "Ratio": s["ratio"]} for s in splits]),
+            column_config={
+                "Ratio": st.column_config.NumberColumn(alignment="right"),
+            },
             width="stretch",
             hide_index=True,
         )

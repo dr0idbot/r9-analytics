@@ -199,21 +199,28 @@ with tab_compare:
 
                 if metrics_list:
                     metrics_df = pd.DataFrame(metrics_list)
-                    styler = metrics_df.style
-                    styler = styler.format({
-                        "Current Price": "${:,.2f}",
-                        "Total Return (%)": "{:.1f}%",
-                        "CAGR (%)": "{:.1f}%",
-                        "Max Drawdown (%)": "{:.1f}%",
-                        "Volatility (Ann. %)": "{:.1f}%",
-                    }, na_rep="N/A")
-                    styler = styler.apply(
-                        lambda col: ["text-align: right"] * len(col)
-                        if pd.api.types.is_numeric_dtype(col.dtype)
-                        else [""],
-                        axis=0,
+                    st.dataframe(
+                        metrics_df,
+                        column_config={
+                            "Current Price": st.column_config.NumberColumn(
+                                "Current Price", format="$%.2f", alignment="right",
+                            ),
+                            "Total Return (%)": st.column_config.NumberColumn(
+                                "Total Return (%)", format="%.1f%%", alignment="right",
+                            ),
+                            "CAGR (%)": st.column_config.NumberColumn(
+                                "CAGR (%)", format="%.1f%%", alignment="right",
+                            ),
+                            "Max Drawdown (%)": st.column_config.NumberColumn(
+                                "Max Drawdown (%)", format="%.1f%%", alignment="right",
+                            ),
+                            "Volatility (Ann. %)": st.column_config.NumberColumn(
+                                "Volatility (Ann. %)", format="%.1f%%", alignment="right",
+                            ),
+                        },
+                        width="stretch",
+                        hide_index=True,
                     )
-                    st.dataframe(styler, width="stretch", hide_index=True)
 
 # ================================================================== #
 # Tab 2: Sector Breakdown
@@ -241,6 +248,13 @@ with tab_sector:
         st.plotly_chart(fig, width="stretch")
 
         with st.expander("Sector Details"):
-            styled_df(sector_counts, width="stretch", hide_index=True)
+            styled_df(
+                sector_counts,
+                column_config={
+                    "Count": st.column_config.NumberColumn(alignment="right"),
+                },
+                width="stretch",
+                hide_index=True,
+            )
     else:
         st.info("No sector data available.")
