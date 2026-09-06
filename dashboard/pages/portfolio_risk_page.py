@@ -1,6 +1,7 @@
 """Portfolio Risk page — portfolio-level risk metrics."""
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 from shared.config import load_db_config
@@ -101,7 +102,7 @@ if risk:
     if risk["value_contributions"]:
         st.markdown("#### Value Contributions")
         vc_df = styled_df(
-            risk["value_contributions"],
+            pd.DataFrame(risk["value_contributions"]),
             column_config={
                 "weight": st.column_config.NumberColumn("Weight", format="%.2%%", alignment="right"),
                 "annual_return": st.column_config.NumberColumn("Annual Return", format="%.2%%", alignment="right"),

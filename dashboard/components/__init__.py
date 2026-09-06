@@ -5,13 +5,15 @@ import pandas as pd
 import streamlit as st
 
 
-def styled_df(df: pd.DataFrame, **kwargs):
+def styled_df(df, **kwargs):
     """Render a DataFrame with zebra striping.
 
     Accepts the same keyword arguments as st.dataframe (width, hide_index, etc.).
     Pass ``column_config`` with ``alignment="right"`` for numeric columns
     to right-align data cells (headers are not affected — Streamlit limitation).
     """
+    if not isinstance(df, pd.DataFrame):
+        df = pd.DataFrame(df)
     hide_index = kwargs.pop("hide_index", True)
 
     def _zebra_css(row):

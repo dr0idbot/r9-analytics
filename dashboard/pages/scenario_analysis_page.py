@@ -66,7 +66,7 @@ if result["stress_test"]:
 
     # Table
     styled_stress = styled_df(
-        result["stress_test"],
+        pd.DataFrame(result["stress_test"]),
         column_config={
             "crisis_return": st.column_config.NumberColumn("Crisis Return", format="%.1%%"),
             "current_price": st.column_config.NumberColumn("Current Price", format="$%.2f"),
