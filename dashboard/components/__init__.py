@@ -22,7 +22,7 @@ def styled_df(df: pd.DataFrame, **kwargs):
     def _align_numbers(col):
         if pd.api.types.is_numeric_dtype(col.dtype):
             return ["text-align: right"] * len(col)
-        return [""]
+        return [""] * len(col)
 
     header_css = [
         {"selector": "th", "props": [("text-align", "left")]},
