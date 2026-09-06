@@ -1,30 +1,22 @@
 # R9 Analytics Theme
-# Clean, minimal light theme with diverse chart palette
+# Light and dark variants with diverse chart palette
 
 [theme]
 base = "light"
-primaryColor = "#2563EB"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-codeBackgroundColor = "#F1F5F9"
-textColor = "#0F172A"
-linkColor = "#2563EB"
-borderColor = "#E2E8F0"
-showWidgetBorder = true
-showSidebarBorder = true
-baseRadius = "8px"
-buttonRadius = "8px"
 
 # Typography
 font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
 codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
 codeFontSize = "0.85rem"
-codeTextColor = "#334155"
 baseFontSize = 14
 baseFontWeight = 400
 headingFontSizes = ["32px", "24px", "20px", "16px", "14px", "12px"]
 headingFontWeights = [600, 600, 600, 500, 500, 500]
 linkUnderline = false
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "8px"
+buttonRadius = "8px"
 
 # Diverse chart palette (blue, emerald, violet, amber, rose, cyan, orange)
 chartCategoricalColors = ["#2563EB", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#06B6D4", "#F97316", "#6366F1", "#14B8A6", "#EC4899"]
@@ -38,11 +30,19 @@ yellowColor = "#F59E0B"
 orangeColor = "#F97316"
 violetColor = "#8B5CF6"
 
-# Dataframe
+[theme.light]
+primaryColor = "#2563EB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+codeBackgroundColor = "#F1F5F9"
+textColor = "#0F172A"
+linkColor = "#2563EB"
+borderColor = "#E2E8F0"
+codeTextColor = "#334155"
 dataframeBorderColor = "#E2E8F0"
 dataframeHeaderBackgroundColor = "#F8FAFC"
 
-[theme.sidebar]
+[theme.light.sidebar]
 backgroundColor = "#F8FAFC"
 secondaryBackgroundColor = "#F1F5F9"
 codeBackgroundColor = "#F1F5F9"
@@ -51,3 +51,25 @@ borderColor = "#E2E8F0"
 primaryColor = "#2563EB"
 dataframeHeaderBackgroundColor = "#F1F5F9"
 dataframeBorderColor = "#E2E8F0"
+
+[theme.dark]
+primaryColor = "#60A5FA"
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1E293B"
+codeBackgroundColor = "#1E293B"
+textColor = "#F1F5F9"
+linkColor = "#60A5FA"
+borderColor = "#334155"
+codeTextColor = "#CBD5E1"
+dataframeBorderColor = "#334155"
+dataframeHeaderBackgroundColor = "#1E293B"
+
+[theme.dark.sidebar]
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1E293B"
+codeBackgroundColor = "#1E293B"
+textColor = "#F1F5F9"
+borderColor = "#334155"
+primaryColor = "#60A5FA"
+dataframeHeaderBackgroundColor = "#1E293B"
+dataframeBorderColor = "#334155"
