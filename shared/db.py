@@ -225,7 +225,11 @@ CREATE TABLE IF NOT EXISTS calc.risk_metrics (
     treynor_ratio           DOUBLE PRECISION,
     information_ratio       DOUBLE PRECISION,
     omega_ratio             DOUBLE PRECISION,
+    -- Phase 3: Market Risk
     beta                    DOUBLE PRECISION,
+    alpha                   DOUBLE PRECISION,
+    r_squared               DOUBLE PRECISION,
+    tracking_error          DOUBLE PRECISION,
     UNIQUE (ticker, calc_time)
 )
 """
@@ -237,14 +241,16 @@ INSERT INTO calc.risk_metrics
      semi_deviation, downside_ratio, max_drawdown,
      historical_var_95, parametric_var_95, cvar_95,
      sharpe_ratio, sortino_ratio, calmar_ratio,
-     treynor_ratio, information_ratio, omega_ratio, beta)
+     treynor_ratio, information_ratio, omega_ratio,
+     beta, alpha, r_squared, tracking_error)
 VALUES
     (%(ticker)s, %(calc_time)s,
      %(realized_volatility)s, %(parkinson_volatility)s, %(garman_klass_volatility)s,
      %(semi_deviation)s, %(downside_ratio)s, %(max_drawdown)s,
      %(historical_var_95)s, %(parametric_var_95)s, %(cvar_95)s,
      %(sharpe_ratio)s, %(sortino_ratio)s, %(calmar_ratio)s,
-     %(treynor_ratio)s, %(information_ratio)s, %(omega_ratio)s, %(beta)s)
+     %(treynor_ratio)s, %(information_ratio)s, %(omega_ratio)s,
+     %(beta)s, %(alpha)s, %(r_squared)s, %(tracking_error)s)
 """
 
 Q_GET_LATEST_RISK_METRICS = """
@@ -253,7 +259,8 @@ SELECT ticker, calc_time,
        semi_deviation, downside_ratio, max_drawdown,
        historical_var_95, parametric_var_95, cvar_95,
        sharpe_ratio, sortino_ratio, calmar_ratio,
-       treynor_ratio, information_ratio, omega_ratio, beta
+       treynor_ratio, information_ratio, omega_ratio,
+       beta, alpha, r_squared, tracking_error
 FROM calc.risk_metrics
 WHERE ticker = %s
 ORDER BY calc_time DESC
@@ -266,7 +273,8 @@ SELECT ticker, calc_time,
        semi_deviation, downside_ratio, max_drawdown,
        historical_var_95, parametric_var_95, cvar_95,
        sharpe_ratio, sortino_ratio, calmar_ratio,
-       treynor_ratio, information_ratio, omega_ratio, beta
+       treynor_ratio, information_ratio, omega_ratio,
+       beta, alpha, r_squared, tracking_error
 FROM calc.risk_metrics
 WHERE ticker = %s
 ORDER BY calc_time DESC
@@ -432,7 +440,8 @@ def get_latest_risk_metrics(conn: psycopg.Connection, ticker: str) -> dict | Non
         "sharpe_ratio": row[11], "sortino_ratio": row[12],
         "calmar_ratio": row[13], "treynor_ratio": row[14],
         "information_ratio": row[15], "omega_ratio": row[16],
-        "beta": row[17],
+        "beta": row[17], "alpha": row[18],
+        "r_squared": row[19], "tracking_error": row[20],
     }
 
 
@@ -450,7 +459,8 @@ def get_risk_metrics_history(conn: psycopg.Connection, ticker: str) -> list[dict
             "sharpe_ratio": r[11], "sortino_ratio": r[12],
             "calmar_ratio": r[13], "treynor_ratio": r[14],
             "information_ratio": r[15], "omega_ratio": r[16],
-            "beta": r[17],
+            "beta": r[17], "alpha": r[18],
+            "r_squared": r[19], "tracking_error": r[20],
         }
         for r in rows
     ]

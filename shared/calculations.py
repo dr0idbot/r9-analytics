@@ -634,10 +634,67 @@ def tracking_error(
     return float(excess.std() * np.sqrt(TRADING_DAYS_PER_YEAR))
 
 
+def alpha(
+    conn: psycopg.Connection,
+    ticker: str,
+    benchmark: str = "SPY",
+    risk_free_rate: float | None = None,
+) -> float:
+    """Compute Jensen's alpha — excess return beyond market compensation.
+
+    Formula: alpha = R_p - (Rf + Beta * (R_m - Rf))
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        benchmark: Benchmark ticker.
+        risk_free_rate: Annual risk-free rate. Uses default if None.
+
+    Returns:
+        Alpha as a float.
+    """
+    rf = risk_free_rate if risk_free_rate is not None else RISK_FREE_RATE
+    b = beta(conn, ticker, benchmark)
+    ann_ret = _annualized_return(conn, ticker)
+    bench_ret = _annualized_return(conn, benchmark)
+    return float(ann_ret - (rf + b * (bench_ret - rf)))
+
+
+def r_squared(
+    conn: psycopg.Connection,
+    ticker: str,
+    benchmark: str = "SPY",
+) -> float:
+    """Compute R-squared — proportion of variance explained by benchmark.
+
+    Formula: correlation(stock, benchmark)^2
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        benchmark: Benchmark ticker.
+
+    Returns:
+        R-squared between 0 and 1.
+    """
+    stock_returns = daily_returns(conn, ticker)
+    bench_returns = daily_returns(conn, benchmark)
+    if stock_returns.empty or bench_returns.empty:
+        return 0.0
+
+    aligned = pd.concat([stock_returns, bench_returns], axis=1).dropna()
+    if len(aligned) < 2:
+        return 0.0
+
+    corr = aligned.iloc[:, 0].corr(aligned.iloc[:, 1])
+    return float(corr ** 2)
+
+
 def single_asset_risk(conn: psycopg.Connection, ticker: str) -> dict:
     """Compute all single-asset risk metrics for a ticker.
 
-    Includes Phase 1 (risk) and Phase 2 (risk-adjusted return) metrics.
+    Includes Phase 1 (risk), Phase 2 (risk-adjusted return),
+    and Phase 3 (market risk) metrics.
 
     Args:
         conn: Database connection.
@@ -665,7 +722,11 @@ def single_asset_risk(conn: psycopg.Connection, ticker: str) -> dict:
         "treynor_ratio": treynor_ratio(conn, ticker),
         "information_ratio": information_ratio(conn, ticker),
         "omega_ratio": omega_ratio(conn, ticker),
+        # Phase 3 — Market Risk
         "beta": beta(conn, ticker),
+        "alpha": alpha(conn, ticker),
+        "r_squared": r_squared(conn, ticker),
+        "tracking_error": tracking_error(conn, ticker),
     }
 
 

@@ -350,7 +350,11 @@ def do_risk(conn: object) -> None:
     log.info("  Treynor Ratio:          %8.4f", risk["treynor_ratio"])
     log.info("  Information Ratio:      %8.4f", risk["information_ratio"])
     log.info("  Omega Ratio:            %8.4f", risk["omega_ratio"])
+    log.info("  --- Phase 3: Market Risk ---")
     log.info("  Beta:                   %8.4f", risk["beta"])
+    log.info("  Alpha:                  %8.4f", risk["alpha"])
+    log.info("  R-Squared:              %8.4f", risk["r_squared"])
+    log.info("  Tracking Error:         %8.4f", risk["tracking_error"])
 
 
 def do_portfolio_exposure(conn: object) -> None:

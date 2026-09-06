@@ -90,7 +90,15 @@ with st.container(border=True):
         st.metric("Omega Ratio", f"{risk['omega_ratio']:.4f}", border=True, width="content")
         st.metric("Treynor Ratio", f"{risk['treynor_ratio']:.4f}", border=True, width="content")
         st.metric("Information Ratio", f"{risk['information_ratio']:.4f}", border=True, width="content")
+
+# Phase 3: Market Risk
+with st.container(border=True):
+    st.markdown("**Market Risk Metrics** (vs SPY)")
+    with st.container(horizontal=True, wrap=True, gap="small"):
         st.metric("Beta", f"{risk['beta']:.4f}", border=True, width="content")
+        st.metric("Alpha", f"{risk['alpha']:.4f}", border=True, width="content")
+        st.metric("R-Squared", f"{risk['r_squared']:.4f}", border=True, width="content")
+        st.metric("Tracking Error", f"{risk['tracking_error']:.4f}", border=True, width="content")
 
 st.markdown("---")
 
@@ -215,7 +223,11 @@ with st.expander("All Metrics (Detailed)"):
         {"Category": "Return", "Metric": "Treynor Ratio", "Value": risk["treynor_ratio"], "Unit": "ratio"},
         {"Category": "Return", "Metric": "Information Ratio", "Value": risk["information_ratio"], "Unit": "ratio"},
         {"Category": "Return", "Metric": "Omega Ratio", "Value": risk["omega_ratio"], "Unit": "ratio"},
-        {"Category": "Return", "Metric": "Beta", "Value": risk["beta"], "Unit": "ratio"},
+        # Phase 3: Market Risk
+        {"Category": "Market", "Metric": "Beta", "Value": risk["beta"], "Unit": "ratio"},
+        {"Category": "Market", "Metric": "Alpha", "Value": risk["alpha"], "Unit": "ratio"},
+        {"Category": "Market", "Metric": "R-Squared", "Value": risk["r_squared"], "Unit": "ratio"},
+        {"Category": "Market", "Metric": "Tracking Error", "Value": risk["tracking_error"], "Unit": "ratio"},
     ])
     styled_df(
         metrics_df,
