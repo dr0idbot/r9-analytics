@@ -12,8 +12,9 @@ def styled_df(df: pd.DataFrame, **kwargs):
     """
     hide_index = kwargs.pop("hide_index", True)
 
-    def _zebra_css(row_idx: int) -> list[str]:
-        bg = "background-color: rgba(138, 180, 250, 0.08)" if row_idx % 2 == 0 else ""
+    def _zebra_css(row):
+        idx = row.name
+        bg = "background-color: rgba(138, 180, 250, 0.08)" if idx % 2 == 0 else ""
         return [bg] * len(df.columns)
 
     styler = df.style.apply(_zebra_css, axis=1)
