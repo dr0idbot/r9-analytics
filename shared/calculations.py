@@ -14,9 +14,11 @@ import psycopg
 
 from shared.db import (
     ensure_calc_schema,
+    get_latest_portfolio_risk,
     get_latest_risk_metrics,
     get_portfolio as _get_portfolio,
     get_portfolio_securities,
+    insert_portfolio_risk,
     insert_risk_metrics,
 )
 from shared.queries import get_candles_df
@@ -765,3 +767,298 @@ def load_latest_risk_metrics(conn: psycopg.Connection, ticker: str) -> dict | No
         Dict with risk metrics and calc_time, or None if not found.
     """
     return get_latest_risk_metrics(conn, ticker)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4 — Portfolio Risk Metrics
+# --------------------------------------------------------------------------- #
+
+def _get_portfolio_weights(conn: psycopg.Connection, portfolio_id: int) -> dict[str, float]:
+    """Get portfolio weights as {ticker: weight}.
+
+    Weights are computed as (units × buy_price) / total_market_value.
+    """
+    securities = get_portfolio_securities(conn, portfolio_id)
+    total = sum(s["units"] * s["buy_price"] for s in securities)
+    if total == 0:
+        return {}
+    return {s["ticker"]: (s["units"] * s["buy_price"]) / total for s in securities}
+
+
+def _get_portfolio_returns(conn: psycopg.Connection, portfolio_id: int, weights: dict[str, float]) -> pd.Series:
+    """Get weighted portfolio daily returns."""
+    tickers = list(weights.keys())
+    w = np.array([weights[t] for t in tickers])
+
+    dfs = {}
+    for ticker in tickers:
+        df = get_candles_df(conn, ticker)
+        if df is not None and not df.empty:
+            dfs[ticker] = df["adj_close"].pct_change().dropna()
+
+    if not dfs:
+        return pd.Series(dtype=float)
+
+    returns_df = pd.DataFrame(dfs).dropna()
+    if returns_df.empty:
+        return pd.Series(dtype=float)
+
+    return pd.Series(np.dot(returns_df.values, w), index=returns_df.index, name="portfolio_return")
+
+
+def portfolio_beta(conn: psycopg.Connection, portfolio_id: int) -> float | None:
+    """Portfolio beta: weighted sum of individual betas.
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        Portfolio beta, or None if SPY data missing.
+    """
+    from shared.calculations import beta as single_beta
+
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    if not weights:
+        return None
+
+    betas = []
+    for ticker, weight in weights.items():
+        b = single_beta(conn, ticker)
+        if b is not None:
+            betas.append((weight, b))
+
+    if not betas:
+        return None
+
+    return sum(w * b for w, b in betas)
+
+
+def portfolio_volatility(conn: psycopg.Connection, portfolio_id: int) -> float | None:
+    """Portfolio volatility: sqrt(w' × Covariance × w).
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        Annualized portfolio volatility (decimal), or None if insufficient data.
+    """
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    if not weights:
+        return None
+
+    tickers = list(weights.keys())
+    w = np.array([weights[t] for t in tickers])
+
+    dfs = {}
+    for ticker in tickers:
+        df = get_candles_df(conn, ticker)
+        if df is not None and not df.empty:
+            dfs[ticker] = df["adj_close"].pct_change().dropna()
+
+    if len(dfs) < 2:
+        return None
+
+    returns_df = pd.DataFrame(dfs).dropna()
+    if returns_df.empty or len(returns_df) < 30:
+        return None
+
+    cov_matrix = returns_df.cov().values
+    port_var = float(np.dot(w, np.dot(cov_matrix, w)))
+    return np.sqrt(port_var * TRADING_DAYS_PER_YEAR)
+
+
+def portfolio_var(conn: psycopg.Connection, portfolio_id: int,
+                  confidence: float = 0.95) -> float | None:
+    """Portfolio Value at Risk (historical simulation).
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+        confidence: Confidence level (default 95%).
+
+    Returns:
+        Portfolio VaR (negative number = loss), or None.
+    """
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    port_returns = _get_portfolio_returns(conn, portfolio_id, weights)
+    if port_returns.empty:
+        return None
+
+    alpha = 1 - confidence
+    return float(np.percentile(port_returns, alpha * 100))
+
+
+def portfolio_cvar(conn: psycopg.Connection, portfolio_id: int,
+                   confidence: float = 0.95) -> float | None:
+    """Portfolio Conditional VaR (Expected Shortfall).
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+        confidence: Confidence level (default 95%).
+
+    Returns:
+        Portfolio CVaR (mean of losses beyond VaR), or None.
+    """
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    port_returns = _get_portfolio_returns(conn, portfolio_id, weights)
+    if port_returns.empty:
+        return None
+
+    var = portfolio_var(conn, portfolio_id, confidence)
+    if var is None:
+        return None
+
+    return float(port_returns[port_returns <= var].mean())
+
+
+def diversification_ratio(conn: psycopg.Connection, portfolio_id: int) -> float | None:
+    """Diversification ratio: (sum of w_i × sigma_i) / sigma_portfolio.
+
+    Values > 1 indicate diversification benefit.
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        Diversification ratio, or None.
+    """
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    if not weights:
+        return None
+
+    port_vol = portfolio_volatility(conn, portfolio_id)
+    if port_vol is None or port_vol == 0:
+        return None
+
+    weighted_vols = []
+    for ticker, weight in weights.items():
+        vol = realized_volatility(conn, ticker)
+        if vol is not None:
+            weighted_vols.append(weight * vol / 100)
+
+    if not weighted_vols:
+        return None
+
+    return sum(weighted_vols) / port_vol
+
+
+def concentration_index(conn: psycopg.Connection, portfolio_id: int) -> float:
+    """Herfindahl-Hirschman index of portfolio weights.
+
+    Range: 1/n (equal weight) to 1 (single holding).
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        Concentration index (0-1).
+    """
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    if not weights:
+        return 0.0
+
+    return sum(w ** 2 for w in weights.values())
+
+
+def value_contribution(conn: psycopg.Connection, portfolio_id: int) -> list[dict]:
+    """Per-holding contribution to excess return: weight × (return - Rf).
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        List of dicts sorted by contribution descending:
+        [{"ticker": "AAPL", "weight": 0.3, "contribution": 0.02}, ...]
+    """
+    weights = _get_portfolio_weights(conn, portfolio_id)
+    if not weights:
+        return []
+
+    results = []
+    for ticker, weight in weights.items():
+        df = get_candles_df(conn, ticker)
+        if df is None or df.empty:
+            continue
+
+        daily_returns = df["adj_close"].pct_change().dropna()
+        if daily_returns.empty:
+            continue
+
+        annual_return = float(daily_returns.mean() * TRADING_DAYS_PER_YEAR)
+        excess = annual_return - RISK_FREE_RATE
+        results.append({
+            "ticker": ticker,
+            "weight": weight,
+            "annual_return": annual_return,
+            "contribution": weight * excess,
+        })
+
+    return sorted(results, key=lambda x: x["contribution"], reverse=True)
+
+
+def portfolio_risk(conn: psycopg.Connection, portfolio_id: int) -> dict:
+    """Compute all portfolio-level risk metrics.
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        Dict with all portfolio risk metrics.
+    """
+    return {
+        "portfolio_id": portfolio_id,
+        "portfolio_beta": portfolio_beta(conn, portfolio_id),
+        "portfolio_volatility": portfolio_volatility(conn, portfolio_id),
+        "portfolio_var_95": portfolio_var(conn, portfolio_id, confidence=0.95),
+        "portfolio_cvar_95": portfolio_cvar(conn, portfolio_id, confidence=0.95),
+        "diversification_ratio": diversification_ratio(conn, portfolio_id),
+        "concentration_index": concentration_index(conn, portfolio_id),
+        "value_contributions": value_contribution(conn, portfolio_id),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Persist / Load (Portfolio Risk)
+# --------------------------------------------------------------------------- #
+
+def save_portfolio_risk(conn: psycopg.Connection, portfolio_id: int) -> dict:
+    """Compute and persist portfolio risk metrics.
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        The saved portfolio risk dict with calc_time.
+    """
+    ensure_calc_schema(conn)
+
+    risk = portfolio_risk(conn, portfolio_id)
+    risk["calc_time"] = datetime.now()
+
+    # Remove value_contributions (list, not scalar)
+    save_data = {k: v for k, v in risk.items() if k != "value_contributions"}
+
+    insert_portfolio_risk(conn, save_data)
+    logger.info("Saved portfolio risk for portfolio %d at %s", portfolio_id, risk["calc_time"])
+    return risk
+
+
+def load_latest_portfolio_risk(conn: psycopg.Connection, portfolio_id: int) -> dict | None:
+    """Load the most recent persisted portfolio risk metrics.
+
+    Args:
+        conn: Database connection.
+        portfolio_id: Portfolio id.
+
+    Returns:
+        Dict with portfolio risk metrics and calc_time, or None if not found.
+    """
+    return get_latest_portfolio_risk(conn, portfolio_id)

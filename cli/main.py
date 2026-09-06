@@ -397,6 +397,79 @@ def do_portfolio_exposure(conn: object) -> None:
         log.info("  %-30s %-10.2f%% %s", ind["industry"], ind["weight"] * 100, ", ".join(ind["tickers"]))
 
 
+def do_portfolio_risk(conn: object) -> None:
+    """Show portfolio-level risk metrics."""
+    from shared.calculations import portfolio_risk, save_portfolio_risk
+
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios.")
+        return
+
+    log.info("Available portfolios:")
+    for p in portfolios:
+        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
+
+    try:
+        pid = int(input("  Portfolio ID: ").strip())
+    except ValueError:
+        log.error("Invalid ID.")
+        return
+
+    detail = get_portfolio_detail(conn, pid)
+    if detail is None:
+        log.error("Portfolio not found.")
+        return
+
+    log.info("\n=== Portfolio Risk: %s (%s) ===", detail["name"], detail["currency"])
+    log.info("Computing risk metrics...")
+    risk = portfolio_risk(conn, pid)
+
+    log.info("\n--- Market Risk ---")
+    if risk["portfolio_beta"] is not None:
+        log.info("  Beta:              %.4f", risk["portfolio_beta"])
+    else:
+        log.info("  Beta:              N/A (need SPY data)")
+    if risk["portfolio_volatility"] is not None:
+        log.info("  Volatility:        %.4f%%", risk["portfolio_volatility"] * 100)
+    else:
+        log.info("  Volatility:        N/A")
+
+    log.info("\n--- Risk Metrics ---")
+    if risk["portfolio_var_95"] is not None:
+        log.info("  VaR (95%%):         %.4f%%", risk["portfolio_var_95"] * 100)
+    else:
+        log.info("  VaR (95%%):         N/A")
+    if risk["portfolio_cvar_95"] is not None:
+        log.info("  CVaR (95%%):        %.4f%%", risk["portfolio_cvar_95"] * 100)
+    else:
+        log.info("  CVaR (95%%):        N/A")
+
+    log.info("\n--- Diversification ---")
+    if risk["diversification_ratio"] is not None:
+        log.info("  Diversification:   %.4f", risk["diversification_ratio"])
+    else:
+        log.info("  Diversification:   N/A")
+    log.info("  Concentration:     %.4f", risk["concentration_index"])
+
+    log.info("\n--- Value Contributions (Top 10) ---")
+    if risk["value_contributions"]:
+        log.info("  %-8s %-10s %-15s %-15s", "TICKER", "WEIGHT", "RETURN", "CONTRIBUTION")
+        for vc in risk["value_contributions"][:10]:
+            log.info("  %-8s %-10.2f%% %-15.4f%% %-15.4f%%",
+                     vc["ticker"], vc["weight"] * 100, vc["annual_return"] * 100, vc["contribution"] * 100)
+    else:
+        log.info("  No holdings found.")
+
+    try:
+        save = input("\n  Save to database? [y/N]: ").strip().lower()
+        if save == "y":
+            save_portfolio_risk(conn, pid)
+            log.info("Portfolio risk saved.")
+    except (EOFError, KeyboardInterrupt):
+        pass
+
+
 MENU = """\033[1;34m
 === r9_analytics ingestion ===
   update        sync all tickers with latest data
@@ -410,6 +483,7 @@ MENU = """\033[1;34m
   pr            remove security from portfolio
   pd            delete portfolio
   px            show portfolio exposure
+  prisk         show portfolio risk metrics
 
 === analytics ===
   risk          show single-asset risk metrics
@@ -473,6 +547,9 @@ def main() -> None:
         elif choice == "px":
             with get_connection(cfg) as conn:
                 do_portfolio_exposure(conn)
+        elif choice == "prisk":
+            with get_connection(cfg) as conn:
+                do_portfolio_risk(conn)
         elif choice == "risk":
             with get_connection(cfg) as conn:
                 do_risk(conn)

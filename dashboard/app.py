@@ -26,6 +26,7 @@ pg = st.navigation(
         "Portfolios": [
             st.Page("pages/portfolio_manager_page.py", title="Portfolio Manager", icon=":material/account_balance:"),
             st.Page("pages/portfolio_exposure_page.py", title="Portfolio Exposure", icon=":material/pie_chart:"),
+            st.Page("pages/portfolio_risk_page.py", title="Portfolio Risk", icon=":material/shield:"),
         ],
         "Risk": [
             st.Page("pages/risk_analysis_page.py", title="Risk Analysis", icon=":material/shield:"),

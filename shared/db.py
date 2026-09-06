@@ -418,6 +418,7 @@ def ensure_calc_schema(conn: psycopg.Connection) -> None:
     """Create calc schema and tables if they do not exist."""
     conn.execute(Q_CREATE_CALC_SCHEMA)
     conn.execute(Q_CREATE_RISK_METRICS)
+    conn.execute(Q_CREATE_PORTFOLIO_RISK)
 
 
 def insert_risk_metrics(conn: psycopg.Connection, data: dict) -> None:
@@ -464,3 +465,66 @@ def get_risk_metrics_history(conn: psycopg.Connection, ticker: str) -> list[dict
         }
         for r in rows
     ]
+
+
+# --- Phase 4: Portfolio Risk ------------------------------------------------ #
+
+Q_CREATE_PORTFOLIO_RISK = """
+CREATE TABLE IF NOT EXISTS calc.portfolio_risk (
+    id                  SERIAL PRIMARY KEY,
+    portfolio_id        INT NOT NULL REFERENCES market.portfolios(id) ON DELETE CASCADE,
+    calc_time           TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- Market Risk
+    portfolio_beta      DOUBLE PRECISION,
+    portfolio_volatility DOUBLE PRECISION,
+    -- Risk Metrics
+    portfolio_var_95    DOUBLE PRECISION,
+    portfolio_cvar_95   DOUBLE PRECISION,
+    -- Diversification
+    diversification_ratio DOUBLE PRECISION,
+    concentration_index DOUBLE PRECISION,
+    UNIQUE (portfolio_id, calc_time)
+)
+"""
+
+Q_INSERT_PORTFOLIO_RISK = """
+INSERT INTO calc.portfolio_risk
+    (portfolio_id, calc_time,
+     portfolio_beta, portfolio_volatility,
+     portfolio_var_95, portfolio_cvar_95,
+     diversification_ratio, concentration_index)
+VALUES
+    (%(portfolio_id)s, %(calc_time)s,
+     %(portfolio_beta)s, %(portfolio_volatility)s,
+     %(portfolio_var_95)s, %(portfolio_cvar_95)s,
+     %(diversification_ratio)s, %(concentration_index)s)
+"""
+
+Q_GET_LATEST_PORTFOLIO_RISK = """
+SELECT portfolio_id, calc_time,
+       portfolio_beta, portfolio_volatility,
+       portfolio_var_95, portfolio_cvar_95,
+       diversification_ratio, concentration_index
+FROM calc.portfolio_risk
+WHERE portfolio_id = %s
+ORDER BY calc_time DESC
+LIMIT 1
+"""
+
+
+def insert_portfolio_risk(conn: psycopg.Connection, data: dict) -> None:
+    """Insert a portfolio risk record."""
+    conn.execute(Q_INSERT_PORTFOLIO_RISK, data)
+
+
+def get_latest_portfolio_risk(conn: psycopg.Connection, portfolio_id: int) -> dict | None:
+    """Return the most recent portfolio risk metrics, or None."""
+    row = conn.execute(Q_GET_LATEST_PORTFOLIO_RISK, (portfolio_id,)).fetchone()
+    if row is None:
+        return None
+    return {
+        "portfolio_id": row[0], "calc_time": row[1],
+        "portfolio_beta": row[2], "portfolio_volatility": row[3],
+        "portfolio_var_95": row[4], "portfolio_cvar_95": row[5],
+        "diversification_ratio": row[6], "concentration_index": row[7],
+    }
