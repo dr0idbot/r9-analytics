@@ -1,6 +1,6 @@
 """Data Analytics page.
 
-Calculations, performance metrics, correlations, and analytical charts.
+Calculations, performance metrics, and analytical charts.
 All computations use data from shared/ queries and pandas/plotly.
 """
 from __future__ import annotations
@@ -100,122 +100,126 @@ if not all_tickers:
     st.info("No tickers available for analysis.")
     st.stop()
 
-# ------------------------------------------------------------------ #
-# Ticker Comparison
-# ------------------------------------------------------------------ #
-st.subheader("Performance Comparison")
-
 ticker_options = [t["ticker"] for t in all_tickers]
 
-selected_tickers = st.multiselect(
-    "Select tickers to compare",
-    ticker_options,
-    default=[ticker_options[0]] if ticker_options else [],
-    key="compare_tickers",
-)
-
-compare_range = st.checkbox("Filter date range", value=False, key="compare_range")
-start_date: date | None = None
-end_date: date | None = None
-if compare_range:
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Start", value=date(2023, 1, 1), key="cmp_start")
-    with col2:
-        end_date = st.date_input("End", value=date.today(), key="cmp_end")
-
-if not selected_tickers:
-    st.info("Select at least one ticker above.")
-    st.stop()
-
-try:
-    with get_connection(config) as conn:
-        prices_df = get_multi_ticker_candles_df(
-            conn, selected_tickers, start_date, end_date
-        )
-except Exception as e:
-    st.error(f"Failed to load comparison data: {e}")
-    logger.error("Failed to load comparison data: %s", e)
-    st.stop()
-
-if prices_df.empty:
-    st.info("No data found for selected tickers.")
-    st.stop()
-
-# Forward-fill so later-starting tickers begin at their first available price
-filled = prices_df.ffill().dropna(axis=1, how="all")
-if filled.empty:
-    st.info("No overlapping data for selected tickers.")
-    st.stop()
-
-# --- Line chart ---
-normalized = (filled / filled.iloc[0]) * 100
-fig = go.Figure()
-for ticker in normalized.columns:
-    fig.add_trace(go.Scatter(
-        x=normalized.index,
-        y=normalized[ticker],
-        mode="lines",
-        name=ticker,
-    ))
-fig.update_layout(
-    title="Normalized Price Performance (Base = 100)",
-    xaxis_title="Date",
-    yaxis_title="Normalized Price",
-    height=500,
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-)
-st.plotly_chart(fig, width="stretch")
-
-# --- Metrics table ---
-st.subheader("Performance Metrics")
-metrics_list: list[dict] = []
-for ticker in filled.columns:
-    series = filled[ticker].dropna()
-    if series.empty:
-        continue
-    cur = currency_map.get(ticker, "USD")
-    returns = _calculate_returns(series)
-    cum_returns = _calculate_cumulative_returns(returns)
-    metrics_list.append({
-        "Ticker": ticker,
-        "Currency": cur,
-        "Current Price": _currency_fmt(series.iloc[-1], cur),
-        "Total Return": f"{cum_returns.iloc[-1] * 100:.1f}%" if not cum_returns.empty else "N/A",
-        "CAGR": f"{_calculate_cagr(series) * 100:.1f}%" if _calculate_cagr(series) is not None else "N/A",
-        "Max Drawdown": f"{_calculate_max_drawdown(series) * 100:.1f}%",
-        "Volatility (Ann.)": f"{returns.std() * np.sqrt(252) * 100:.1f}%" if not returns.empty else "N/A",
-    })
-
-if metrics_list:
-    st.dataframe(metrics_list, width="stretch", hide_index=True)
-
 # ------------------------------------------------------------------ #
-# Sector Breakdown
+# Tabs
 # ------------------------------------------------------------------ #
-st.markdown("---")
-st.subheader("Sector Breakdown")
+tab_compare, tab_sector = st.tabs(["Ticker Comparison", "Sector Breakdown"])
 
-sector_data = [
-    {"Sector": t.get("sector") or "Unknown", "Ticker": t["ticker"]}
-    for t in tickers_with_stats
-    if t.get("sector")
-]
+# ================================================================== #
+# Tab 1: Ticker Comparison
+# ================================================================== #
+with tab_compare:
+    st.subheader("Performance Comparison")
 
-if sector_data:
-    sector_df = pd.DataFrame(sector_data)
-    sector_counts = sector_df["Sector"].value_counts().reset_index()
-    sector_counts.columns = ["Sector", "Count"]
+    selected_tickers = st.multiselect(
+        "Select tickers to compare",
+        ticker_options,
+        default=[ticker_options[0]] if ticker_options else [],
+        key="compare_tickers",
+    )
 
-    fig = go.Figure(data=[go.Pie(
-        labels=sector_counts["Sector"],
-        values=sector_counts["Count"],
-        hole=0.3,
-    )])
-    fig.update_layout(title="Ticker Distribution by Sector", height=500)
-    st.plotly_chart(fig, width="stretch")
+    compare_range = st.checkbox("Filter date range", value=False, key="compare_range")
+    start_date: date | None = None
+    end_date: date | None = None
+    if compare_range:
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("Start", value=date(2023, 1, 1), key="cmp_start")
+        with col2:
+            end_date = st.date_input("End", value=date.today(), key="cmp_end")
 
-    with st.expander("Sector Details"):
-        st.dataframe(sector_counts, width="stretch", hide_index=True)
-else:
-    st.info("No sector data available.")
+    if not selected_tickers:
+        st.info("Select at least one ticker above.")
+    else:
+        try:
+            with get_connection(config) as conn:
+                prices_df = get_multi_ticker_candles_df(
+                    conn, selected_tickers, start_date, end_date
+                )
+        except Exception as e:
+            st.error(f"Failed to load comparison data: {e}")
+            logger.error("Failed to load comparison data: %s", e)
+            prices_df = pd.DataFrame()
+
+        if prices_df.empty:
+            st.info("No data found for selected tickers.")
+        else:
+            # Forward-fill so later-starting tickers begin at their first available price
+            filled = prices_df.ffill().dropna(axis=1, how="all")
+
+            if filled.empty:
+                st.info("No overlapping data for selected tickers.")
+            else:
+                # --- Line chart ---
+                normalized = (filled / filled.iloc[0]) * 100
+                fig = go.Figure()
+                for ticker in normalized.columns:
+                    fig.add_trace(go.Scatter(
+                        x=normalized.index,
+                        y=normalized[ticker],
+                        mode="lines",
+                        name=ticker,
+                    ))
+                fig.update_layout(
+                    title="Normalized Price Performance (Base = 100)",
+                    xaxis_title="Date",
+                    yaxis_title="Normalized Price",
+                    height=500,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                )
+                st.plotly_chart(fig, width="stretch")
+
+                # --- Metrics table ---
+                st.subheader("Performance Metrics")
+                metrics_list: list[dict] = []
+                for ticker in filled.columns:
+                    series = filled[ticker].dropna()
+                    if series.empty:
+                        continue
+                    cur = currency_map.get(ticker, "USD")
+                    returns = _calculate_returns(series)
+                    cum_returns = _calculate_cumulative_returns(returns)
+                    metrics_list.append({
+                        "Ticker": ticker,
+                        "Currency": cur,
+                        "Current Price": _currency_fmt(series.iloc[-1], cur),
+                        "Total Return": f"{cum_returns.iloc[-1] * 100:.1f}%" if not cum_returns.empty else "N/A",
+                        "CAGR": f"{_calculate_cagr(series) * 100:.1f}%" if _calculate_cagr(series) is not None else "N/A",
+                        "Max Drawdown": f"{_calculate_max_drawdown(series) * 100:.1f}%",
+                        "Volatility (Ann.)": f"{returns.std() * np.sqrt(252) * 100:.1f}%" if not returns.empty else "N/A",
+                    })
+
+                if metrics_list:
+                    st.dataframe(metrics_list, width="stretch", hide_index=True)
+
+# ================================================================== #
+# Tab 2: Sector Breakdown
+# ================================================================== #
+with tab_sector:
+    st.subheader("Sector Breakdown")
+
+    sector_data = [
+        {"Sector": t.get("sector") or "Unknown", "Ticker": t["ticker"]}
+        for t in tickers_with_stats
+        if t.get("sector")
+    ]
+
+    if sector_data:
+        sector_df = pd.DataFrame(sector_data)
+        sector_counts = sector_df["Sector"].value_counts().reset_index()
+        sector_counts.columns = ["Sector", "Count"]
+
+        fig = go.Figure(data=[go.Pie(
+            labels=sector_counts["Sector"],
+            values=sector_counts["Count"],
+            hole=0.3,
+        )])
+        fig.update_layout(title="Ticker Distribution by Sector", height=500)
+        st.plotly_chart(fig, width="stretch")
+
+        with st.expander("Sector Details"):
+            st.dataframe(sector_counts, width="stretch", hide_index=True)
+    else:
+        st.info("No sector data available.")
