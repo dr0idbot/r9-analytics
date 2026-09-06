@@ -5,8 +5,10 @@ All computations use data from shared/ queries and pandas/plotly.
 """
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -14,7 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from shared.config import load_db_config
+from shared.config import PROJECT_ROOT
 from shared.db import get_connection
 from shared.queries import (
     get_all_tickers,
@@ -27,15 +29,12 @@ from dashboard.components import styled_df
 
 logger = logging.getLogger(__name__)
 
-CURRENCY_SYMBOLS: dict[str, str] = {
-    "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5",
-    "INR": "\u20b9", "CAD": "C$", "AUD": "A$", "CHF": "CHF ",
-    "CNY": "\u00a5", "HKD": "HK$", "SGD": "S$", "KRW": "\u20a9",
-}
+_CURRENCY_FILE = PROJECT_ROOT / "config" / "currency_symbols.json"
+_CURRENCY_SYMBOLS: dict[str, str] = json.loads(_CURRENCY_FILE.read_text())
 
 
 def _currency_fmt(amount: float, currency: str | None) -> str:
-    symbol = CURRENCY_SYMBOLS.get((currency or "USD").upper(), f"{currency} ")
+    symbol = _CURRENCY_SYMBOLS.get((currency or "USD").upper(), _CURRENCY_SYMBOLS["USD"])
     return f"{symbol}{amount:,.2f}"
 
 
