@@ -1,0 +1,6 @@
+host: localhost
+port: 5432
+dbname: r9_analytics
+user: r9analyticsadmin
+password: "R9AnalyticsAdmin!$2020"
+schema: market
