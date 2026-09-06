@@ -142,32 +142,37 @@ with tab_compare:
             prices_df = pd.DataFrame()
 
         if not prices_df.empty:
-            # Normalized price chart — one trace per ticker
-            normalized = (prices_df / prices_df.iloc[0]) * 100
-            fig = go.Figure()
-            for ticker in normalized.columns:
-                fig.add_trace(go.Scatter(
-                    x=normalized.index,
-                    y=normalized[ticker],
-                    mode="lines",
-                    name=ticker,
-                ))
-            fig.update_layout(
-                title="Normalized Price Performance (Base = 100)",
-                xaxis_title="Date",
-                yaxis_title="Normalized Price",
-                height=500,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            )
-            st.plotly_chart(fig, width="stretch")
+            # Forward-fill NaN so later-starting tickers begin at their first available price
+            filled = prices_df.ffill()
+            # Drop any ticker that is still all NaN (no data at all)
+            filled = filled.dropna(axis=1, how="all")
+            if filled.empty:
+                st.info("No overlapping data for selected tickers.")
+            else:
+                # Normalized price chart — one trace per ticker
+                normalized = (filled / filled.iloc[0]) * 100
+                fig = go.Figure()
+                for ticker in normalized.columns:
+                    fig.add_trace(go.Scatter(
+                        x=normalized.index,
+                        y=normalized[ticker],
+                        mode="lines",
+                        name=ticker,
+                    ))
+                fig.update_layout(
+                    title="Normalized Price Performance (Base = 100)",
+                    xaxis_title="Date",
+                    yaxis_title="Normalized Price",
+                    height=500,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                )
+                st.plotly_chart(fig, width="stretch")
 
             # Performance metrics table
             st.subheader("Performance Metrics")
             metrics_list: list[dict] = []
-            for ticker in selected_tickers:
-                if ticker not in prices_df.columns:
-                    continue
-                series = prices_df[ticker].dropna()
+            for ticker in filled.columns:
+                series = filled[ticker].dropna()
                 if series.empty:
                     continue
                 cur = currency_map.get(ticker, "USD")
