@@ -17,17 +17,21 @@ st.title("Scenario Analysis")
 config = load_db_config()
 
 # ── Ticker Selection ──────────────────────────────────────────────── #
-tickers = get_all_tickers(get_connection(config))
+with get_connection(config) as conn:
+    tickers = get_all_tickers(conn)
+
 if not tickers:
     st.info("No tickers in database.")
     st.stop()
 
-selected_ticker = st.selectbox("Select Ticker", sorted(tickers))
+ticker_options = [t["ticker"] for t in tickers]
+selected_ticker = st.selectbox("Select Ticker", sorted(ticker_options))
 
 # ── Compute ───────────────────────────────────────────────────────── #
 if st.button("Run Scenario Analysis", type="primary"):
     with st.spinner("Running scenario analysis..."):
-        result = scenario_analysis(get_connection(config), selected_ticker)
+        with get_connection(config) as conn:
+            result = scenario_analysis(conn, selected_ticker)
         st.session_state["scenario_result"] = result
 
 result = st.session_state.get("scenario_result")

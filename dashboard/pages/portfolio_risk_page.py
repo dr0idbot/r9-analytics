@@ -15,7 +15,9 @@ from dashboard.components import styled_df
 st.title("Portfolio Risk")
 
 config = load_db_config()
-portfolios = list_portfolios(get_connection(config))
+
+with get_connection(config) as conn:
+    portfolios = list_portfolios(conn)
 
 if not portfolios:
     st.info("No portfolios found. Create one in Portfolio Manager.")
@@ -25,7 +27,8 @@ portfolio_options = {f"{p['name']} ({p['currency']}, {p['security_count']} secur
 selected_label = st.selectbox("Select Portfolio", list(portfolio_options.keys()))
 portfolio_id = portfolio_options[selected_label]
 
-detail = get_portfolio_detail(get_connection(config), portfolio_id)
+with get_connection(config) as conn:
+    detail = get_portfolio_detail(conn, portfolio_id)
 
 # ── Compute / Load ────────────────────────────────────────────────── #
 col_action1, col_action2 = st.columns(2)
@@ -33,12 +36,14 @@ col_action1, col_action2 = st.columns(2)
 with col_action1:
     if st.button("Compute Risk Metrics", type="primary", use_container_width=True):
         with st.spinner("Computing portfolio risk..."):
-            risk = portfolio_risk(get_connection(config), portfolio_id)
+            with get_connection(config) as conn:
+                risk = portfolio_risk(conn, portfolio_id)
             st.session_state["portfolio_risk"] = risk
 
 with col_action2:
     if st.button("Load Saved Metrics", use_container_width=True):
-        saved = load_latest_portfolio_risk(get_connection(config), portfolio_id)
+        with get_connection(config) as conn:
+            saved = load_latest_portfolio_risk(conn, portfolio_id)
         if saved:
             st.session_state["portfolio_risk_saved"] = saved
         else:
@@ -110,5 +115,6 @@ if risk:
     st.divider()
     if st.button("Save Portfolio Risk Metrics", type="primary"):
         with st.spinner("Saving..."):
-            save_portfolio_risk(get_connection(config), portfolio_id)
+            with get_connection(config) as conn:
+                save_portfolio_risk(conn, portfolio_id)
             st.success("Portfolio risk metrics saved!")
