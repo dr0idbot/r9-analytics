@@ -23,11 +23,10 @@
 ## Before You Start
 
 1. **Read `guildelines.md`** — it defines all rules, standards, and constraints.
-2. **Read `plan/plan.md`** — it defines the full restructuring plan and migration checklist.
-3. **Read `data-ingestion-module/INFO.md`** — it explains the existing architecture and how smart sync works.
-4. **Read `data-ingestion-module/src/db.py`** — all SQL constants live here. This is the source of truth for the schema.
-5. **Read `data-ingestion-module/src/ingest.py`** — all fetch/sync logic lives here.
-6. **Read `data-ingestion-module/src/main.py`** — the CLI logic you will refactor.
+2. **Read `shared/db.py`** — all SQL constants and DB connection logic.
+3. **Read `shared/ingest.py`** — yfinance fetch and sync logic.
+4. **Read `shared/queries.py`** — read-only queries for viewer/analytics.
+5. **Read `cli/main.py`** — the CLI interface.
 
 ---
 

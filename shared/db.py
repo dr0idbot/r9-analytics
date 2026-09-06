@@ -74,10 +74,6 @@ ON CONFLICT (ticker) DO UPDATE SET
     quote_type = EXCLUDED.quote_type
 """
 
-Q_TICKER_EXISTS = """
-SELECT 1 FROM market.tickers WHERE ticker = %s
-"""
-
 Q_ALL_TICKERS = """
 SELECT ticker FROM market.tickers ORDER BY ticker
 """
@@ -90,11 +86,6 @@ ON CONFLICT (ticker) DO UPDATE SET
     last_synced_on = EXCLUDED.last_synced_on,
     last_candle_date = EXCLUDED.last_candle_date,
     updated_at = NOW()
-"""
-
-Q_GET_SYNC = """
-SELECT last_synced_on, last_candle_date
-FROM market.ticker_sync WHERE ticker = %s
 """
 
 # --- daily_candles (OHLCV) ------------------------------------------------- #

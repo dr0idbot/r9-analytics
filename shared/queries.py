@@ -342,29 +342,6 @@ def get_sync_summary(conn: psycopg.Connection) -> dict:
     return result
 
 
-def get_available_date_range(
-    conn: psycopg.Connection, ticker: str
-) -> tuple[date | None, date | None]:
-    """Return (min, max) trade_date for a ticker.
-
-    Args:
-        conn: Active database connection.
-        ticker: Ticker symbol.
-
-    Returns:
-        Tuple of (earliest_date, latest_date), or (None, None) if no data.
-    """
-    row = conn.execute("""
-        SELECT MIN(trade_date), MAX(trade_date)
-        FROM market.daily_candles
-        WHERE ticker = %s
-    """, (ticker,)).fetchone()
-
-    if row is None or row[0] is None:
-        return (None, None)
-    return (row[0], row[1])
-
-
 def get_multi_ticker_candles_df(
     conn: psycopg.Connection,
     tickers: list[str],

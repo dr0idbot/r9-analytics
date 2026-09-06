@@ -18,7 +18,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
 DB_CONFIG_PATH = CONFIG_DIR / "dbconf.yaml"
 ROSTER_PATH = CONFIG_DIR / "tickers.csv"
-SQL_DIR = PROJECT_ROOT / "sql"
 
 # ---------------------------------------------------------------------------
 # Config loading
