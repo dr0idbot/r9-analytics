@@ -65,7 +65,6 @@ def _render_volume_chart(df: pd.DataFrame, ticker: str) -> None:
                 x=df.index,
                 y=df["volume"],
                 name="Volume",
-                marker_color="rgba(0, 123, 255, 0.6)",
             )
         ]
     )
