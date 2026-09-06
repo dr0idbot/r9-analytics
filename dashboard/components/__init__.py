@@ -22,7 +22,7 @@ def styled_df(df: pd.DataFrame, **kwargs):
     def _align_cells(col):
         if pd.api.types.is_numeric_dtype(col.dtype):
             return ["text-align: right"] * len(col)
-        return [""]
+        return [""] * len(col)
 
     styler = df.style.apply(_zebra_css, axis=1).apply(_align_cells, axis=0)
 
