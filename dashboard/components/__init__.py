@@ -19,23 +19,29 @@ def styled_df(df: pd.DataFrame, **kwargs):
         bg = "background-color: rgba(138, 180, 250, 0.08)" if idx % 2 == 0 else ""
         return [bg] * len(df.columns)
 
-    def _align_numbers(col):
+    def _align_cells(col):
         if pd.api.types.is_numeric_dtype(col.dtype):
             return ["text-align: right"] * len(col)
-        return [""] * len(col)
+        return [""]
 
-    header_css = [
-        {"selector": "th", "props": [("text-align", "left")]},
-        *[{"selector": f"th:nth-child({df.columns.get_loc(c) + 2})", "props": [("text-align", "right")]}
-          for c in num_cols],
-    ]
+    styler = df.style.apply(_zebra_css, axis=1).apply(_align_cells, axis=0)
 
-    styler = (
-        df.style
-        .apply(_zebra_css, axis=1)
-        .apply(_align_numbers, axis=0)
-        .set_table_styles(header_css, overwrite=False)
-    )
+    if num_cols:
+        styler = styler.set_properties(
+            subset=num_cols,
+            **{"text-align": "right"},
+        )
+        styler = styler.set_table_styles(
+            [{"selector": "th", "props": [("text-align", "left")]}],
+            overwrite=True,
+        )
+        for c in num_cols:
+            idx = df.columns.get_loc(c) + 1
+            styler = styler.set_table_styles(
+                [{"selector": f"th:nth-child({idx})", "props": [("text-align", "right")]}],
+                overwrite=False,
+            )
+
     if hide_index:
         styler = styler.hide(axis="index")
     return st.dataframe(styler, **kwargs)
