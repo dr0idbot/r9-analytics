@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+import pandas as pd
 import streamlit as st
 
 from shared.config import load_db_config
@@ -16,6 +17,8 @@ from shared.db import get_connection
 from shared.ingest import fetch_ticker_meta, sync_ticker
 from shared.queries import get_tickers_with_stats
 from shared.roster import add_ticker_to_roster, read_roster
+
+from dashboard.components import styled_df
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +46,8 @@ with tab_roster:
         st.info("Roster is empty. Add a ticker in the 'Add Ticker' tab.")
     else:
         st.metric("Total Tickers", len(tickers))
-        st.dataframe(
-            [
+        styled_df(
+            pd.DataFrame([
                 {
                     "Ticker": t["ticker"],
                     "Name": t["name"] or "N/A",
@@ -56,7 +59,7 @@ with tab_roster:
                     "Last Candle": str(t["last_candle_date"] or "-"),
                 }
                 for t in tickers
-            ],
+            ]),
             width="stretch",
             hide_index=True,
         )

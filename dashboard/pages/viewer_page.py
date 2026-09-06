@@ -22,6 +22,8 @@ from shared.queries import (
     get_ticker_detail,
 )
 
+from dashboard.components import styled_df
+
 logger = logging.getLogger(__name__)
 
 
@@ -141,7 +143,7 @@ with tab_candles:
         with st.expander("Raw Data"):
             raw = candles_df.reset_index().tail(100).copy()
             raw["trade_date"] = raw["trade_date"].dt.strftime("%Y-%m-%d")
-            st.dataframe(
+            styled_df(
                 raw,
                 width="stretch",
                 hide_index=True,
@@ -152,8 +154,8 @@ with tab_candles:
 with tab_dividends:
     if dividends:
         st.metric("Total Dividends", len(dividends))
-        st.dataframe(
-            [{"Date": d["pay_date"], "Amount": d["amount"]} for d in dividends],
+        styled_df(
+            pd.DataFrame([{"Date": d["pay_date"], "Amount": d["amount"]} for d in dividends]),
             width="stretch",
             hide_index=True,
         )
@@ -163,8 +165,8 @@ with tab_dividends:
 with tab_splits:
     if splits:
         st.metric("Total Splits", len(splits))
-        st.dataframe(
-            [{"Date": s["split_date"], "Ratio": s["ratio"]} for s in splits],
+        styled_df(
+            pd.DataFrame([{"Date": s["split_date"], "Ratio": s["ratio"]} for s in splits]),
             width="stretch",
             hide_index=True,
         )

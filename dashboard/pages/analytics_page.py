@@ -23,6 +23,8 @@ from shared.queries import (
     get_tickers_with_stats,
 )
 
+from dashboard.components import styled_df
+
 logger = logging.getLogger(__name__)
 
 CURRENCY_SYMBOLS: dict[str, str] = {
@@ -197,7 +199,7 @@ with tab_compare:
                     })
 
                 if metrics_list:
-                    st.dataframe(metrics_list, width="stretch", hide_index=True)
+                    styled_df(pd.DataFrame(metrics_list), width="stretch", hide_index=True)
 
 # ================================================================== #
 # Tab 2: Sector Breakdown
@@ -225,6 +227,6 @@ with tab_sector:
         st.plotly_chart(fig, width="stretch")
 
         with st.expander("Sector Details"):
-            st.dataframe(sector_counts, width="stretch", hide_index=True)
+            styled_df(sector_counts, width="stretch", hide_index=True)
     else:
         st.info("No sector data available.")
