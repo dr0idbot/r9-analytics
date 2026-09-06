@@ -65,7 +65,7 @@ if result["stress_test"]:
     st.plotly_chart(fig, width="stretch")
 
     # Table
-    styled_stress = styled_df(
+    styled_df(
         pd.DataFrame(result["stress_test"]),
         column_config={
             "crisis_return": st.column_config.NumberColumn("Crisis Return", format="%.1%%"),
@@ -76,7 +76,6 @@ if result["stress_test"]:
         width="stretch",
         hide_index=True,
     )
-    st.dataframe(styled_stress, use_container_width=True, hide_index=True)
 else:
     st.info("No crisis data available.")
 
