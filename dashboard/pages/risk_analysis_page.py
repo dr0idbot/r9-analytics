@@ -95,10 +95,14 @@ with st.container(border=True):
 with st.container(border=True):
     st.markdown("**Market Risk Metrics** (vs SPY)")
     with st.container(horizontal=True, wrap=True, gap="small"):
-        st.metric("Beta", f"{risk['beta']:.4f}", border=True, width="content")
-        st.metric("Alpha", f"{risk['alpha']:.4f}", border=True, width="content")
-        st.metric("R-Squared", f"{risk['r_squared']:.4f}", border=True, width="content")
-        st.metric("Tracking Error", f"{risk['tracking_error']:.4f}", border=True, width="content")
+        beta_val = risk.get("beta")
+        alpha_val = risk.get("alpha")
+        rsq_val = risk.get("r_squared")
+        te_val = risk.get("tracking_error")
+        st.metric("Beta", f"{beta_val:.4f}" if beta_val is not None else "N/A", border=True, width="content")
+        st.metric("Alpha", f"{alpha_val:.4f}" if alpha_val is not None else "N/A", border=True, width="content")
+        st.metric("R-Squared", f"{rsq_val:.4f}" if rsq_val is not None else "N/A", border=True, width="content")
+        st.metric("Tracking Error", f"{te_val:.4f}" if te_val is not None else "N/A", border=True, width="content")
 
 st.markdown("---")
 
@@ -207,27 +211,27 @@ with chart_tab3:
 with st.expander("All Metrics (Detailed)"):
     metrics_df = pd.DataFrame([
         # Phase 1: Risk
-        {"Category": "Risk", "Metric": "Realized Volatility", "Value": risk["realized_volatility"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Parkinson Volatility", "Value": risk["parkinson_volatility"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Garman-Klass Volatility", "Value": risk["garman_klass_volatility"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Historical VaR (95%)", "Value": risk["historical_var_95"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Parametric VaR (95%)", "Value": risk["parametric_var_95"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "CVaR (95%)", "Value": risk["cvar_95"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Max Drawdown", "Value": risk["max_drawdown"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Semi-Deviation", "Value": risk["semi_deviation"], "Unit": "%"},
-        {"Category": "Risk", "Metric": "Downside Ratio", "Value": risk["downside_ratio"], "Unit": "ratio"},
+        {"Category": "Risk", "Metric": "Realized Volatility", "Value": risk.get("realized_volatility"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Parkinson Volatility", "Value": risk.get("parkinson_volatility"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Garman-Klass Volatility", "Value": risk.get("garman_klass_volatility"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Historical VaR (95%)", "Value": risk.get("historical_var_95"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Parametric VaR (95%)", "Value": risk.get("parametric_var_95"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "CVaR (95%)", "Value": risk.get("cvar_95"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Max Drawdown", "Value": risk.get("max_drawdown"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Semi-Deviation", "Value": risk.get("semi_deviation"), "Unit": "%"},
+        {"Category": "Risk", "Metric": "Downside Ratio", "Value": risk.get("downside_ratio"), "Unit": "ratio"},
         # Phase 2: Risk-Adjusted Return
-        {"Category": "Return", "Metric": "Sharpe Ratio", "Value": risk["sharpe_ratio"], "Unit": "ratio"},
-        {"Category": "Return", "Metric": "Sortino Ratio", "Value": risk["sortino_ratio"], "Unit": "ratio"},
-        {"Category": "Return", "Metric": "Calmar Ratio", "Value": risk["calmar_ratio"], "Unit": "ratio"},
-        {"Category": "Return", "Metric": "Treynor Ratio", "Value": risk["treynor_ratio"], "Unit": "ratio"},
-        {"Category": "Return", "Metric": "Information Ratio", "Value": risk["information_ratio"], "Unit": "ratio"},
-        {"Category": "Return", "Metric": "Omega Ratio", "Value": risk["omega_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Sharpe Ratio", "Value": risk.get("sharpe_ratio"), "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Sortino Ratio", "Value": risk.get("sortino_ratio"), "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Calmar Ratio", "Value": risk.get("calmar_ratio"), "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Treynor Ratio", "Value": risk.get("treynor_ratio"), "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Information Ratio", "Value": risk.get("information_ratio"), "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Omega Ratio", "Value": risk.get("omega_ratio"), "Unit": "ratio"},
         # Phase 3: Market Risk
-        {"Category": "Market", "Metric": "Beta", "Value": risk["beta"], "Unit": "ratio"},
-        {"Category": "Market", "Metric": "Alpha", "Value": risk["alpha"], "Unit": "ratio"},
-        {"Category": "Market", "Metric": "R-Squared", "Value": risk["r_squared"], "Unit": "ratio"},
-        {"Category": "Market", "Metric": "Tracking Error", "Value": risk["tracking_error"], "Unit": "ratio"},
+        {"Category": "Market", "Metric": "Beta", "Value": risk.get("beta"), "Unit": "ratio"},
+        {"Category": "Market", "Metric": "Alpha", "Value": risk.get("alpha"), "Unit": "ratio"},
+        {"Category": "Market", "Metric": "R-Squared", "Value": risk.get("r_squared"), "Unit": "ratio"},
+        {"Category": "Market", "Metric": "Tracking Error", "Value": risk.get("tracking_error"), "Unit": "ratio"},
     ])
     styled_df(
         metrics_df,
