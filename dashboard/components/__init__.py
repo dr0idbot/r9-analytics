@@ -6,11 +6,11 @@ import streamlit as st
 
 
 def styled_df(df: pd.DataFrame, **kwargs):
-    """Render a DataFrame with zebra striping and right-aligned numbers.
+    """Render a DataFrame with zebra striping.
 
     Accepts the same keyword arguments as st.dataframe (width, hide_index, etc.).
     Pass ``column_config`` with ``alignment="right"`` for numeric columns
-    to get proper header alignment — Styler CSS cannot control Streamlit headers.
+    to right-align data cells (headers are not affected — Streamlit limitation).
     """
     hide_index = kwargs.pop("hide_index", True)
 
