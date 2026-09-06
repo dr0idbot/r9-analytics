@@ -1,5 +1,5 @@
 # R9 Analytics Theme
-# Light and dark variants with diverse chart palette
+# Catppuccin Latte (light) + Mocha (dark)
 
 [theme]
 base = "light"
@@ -18,58 +18,60 @@ showSidebarBorder = true
 baseRadius = "8px"
 buttonRadius = "8px"
 
-# Diverse chart palette (blue, emerald, violet, amber, rose, cyan, orange)
-chartCategoricalColors = ["#2563EB", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#06B6D4", "#F97316", "#6366F1", "#14B8A6", "#EC4899"]
+# Catppuccin chart palette (Latte/Mocha shared accent colors)
+chartCategoricalColors = ["#1e66f5", "#8839ef", "#ea76cb", "#d20f39", "#fe640b", "#df8e1d", "#40a02b", "#179299", "#04a5e5", "#7287fd"]
 
-# Semantic colors
-grayColor = "#64748B"
-blueColor = "#2563EB"
-greenColor = "#10B981"
-redColor = "#EF4444"
-yellowColor = "#F59E0B"
-orangeColor = "#F97316"
-violetColor = "#8B5CF6"
+# Semantic colors (Mocha accents for both modes)
+grayColor = "#9399b2"
+blueColor = "#89b4fa"
+greenColor = "#a6e3a1"
+redColor = "#f38ba8"
+yellowColor = "#f9e2af"
+orangeColor = "#fab387"
+violetColor = "#cba6f7"
 
 [theme.light]
-primaryColor = "#2563EB"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-codeBackgroundColor = "#F1F5F9"
-textColor = "#0F172A"
-linkColor = "#2563EB"
-borderColor = "#E2E8F0"
-codeTextColor = "#334155"
-dataframeBorderColor = "#E2E8F0"
-dataframeHeaderBackgroundColor = "#F8FAFC"
+# Catppuccin Latte
+primaryColor = "#1e66f5"
+backgroundColor = "#eff1f5"
+secondaryBackgroundColor = "#e6e9ef"
+codeBackgroundColor = "#dce0e8"
+textColor = "#4c4f69"
+linkColor = "#1e66f5"
+borderColor = "#ccd0da"
+codeTextColor = "#4c4f69"
+dataframeBorderColor = "#ccd0da"
+dataframeHeaderBackgroundColor = "#e6e9ef"
 
 [theme.light.sidebar]
-backgroundColor = "#F8FAFC"
-secondaryBackgroundColor = "#F1F5F9"
-codeBackgroundColor = "#F1F5F9"
-textColor = "#0F172A"
-borderColor = "#E2E8F0"
-primaryColor = "#2563EB"
-dataframeHeaderBackgroundColor = "#F1F5F9"
-dataframeBorderColor = "#E2E8F0"
+backgroundColor = "#e6e9ef"
+secondaryBackgroundColor = "#dce0e8"
+codeBackgroundColor = "#dce0e8"
+textColor = "#4c4f69"
+borderColor = "#ccd0da"
+primaryColor = "#1e66f5"
+dataframeHeaderBackgroundColor = "#dce0e8"
+dataframeBorderColor = "#ccd0da"
 
 [theme.dark]
-primaryColor = "#60A5FA"
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#1E293B"
-codeBackgroundColor = "#1E293B"
-textColor = "#F1F5F9"
-linkColor = "#60A5FA"
-borderColor = "#334155"
-codeTextColor = "#CBD5E1"
-dataframeBorderColor = "#334155"
-dataframeHeaderBackgroundColor = "#1E293B"
+# Catppuccin Mocha
+primaryColor = "#89b4fa"
+backgroundColor = "#1e1e2e"
+secondaryBackgroundColor = "#181825"
+codeBackgroundColor = "#313244"
+textColor = "#cdd6f4"
+linkColor = "#89b4fa"
+borderColor = "#45475a"
+codeTextColor = "#cdd6f4"
+dataframeBorderColor = "#45475a"
+dataframeHeaderBackgroundColor = "#313244"
 
 [theme.dark.sidebar]
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#1E293B"
-codeBackgroundColor = "#1E293B"
-textColor = "#F1F5F9"
-borderColor = "#334155"
-primaryColor = "#60A5FA"
-dataframeHeaderBackgroundColor = "#1E293B"
-dataframeBorderColor = "#334155"
+backgroundColor = "#181825"
+secondaryBackgroundColor = "#1e1e2e"
+codeBackgroundColor = "#313244"
+textColor = "#cdd6f4"
+borderColor = "#45475a"
+primaryColor = "#89b4fa"
+dataframeHeaderBackgroundColor = "#313244"
+dataframeBorderColor = "#45475a"
