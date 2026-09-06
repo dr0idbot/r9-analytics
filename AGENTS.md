@@ -1,4 +1,4 @@
-# Agents.md — Implementation Instructions
+# AGENTS.md — Implementation Instructions
 
 > Read this before starting any implementation work on R9 Analytics.
 > This file defines the rules, workflow, and verification steps for agents.
@@ -14,13 +14,13 @@
 | Entry points (after build) | `python -m cli.main` (CLI), `streamlit run dashboard/app.py` (dashboard) |
 | Config dir | `config/` |
 | Shared logic | `shared/` |
-| Guidelines | `guildelines.md` |
+| Guidelines | `GUIDELINES.md` |
 
 ---
 
 ## Before You Start
 
-1. **Read `guildelines.md`** — it defines all rules, standards, and constraints.
+1. **Read `GUIDELINES.md`** — it defines all rules, standards, and constraints.
 2. **Read `shared/db.py`** — all SQL constants and DB connection logic.
 3. **Read `shared/ingest.py`** — yfinance fetch and sync logic.
 4. **Read `shared/queries.py`** — read-only queries for viewer/analytics.
@@ -41,11 +41,11 @@ PLAN → IMPLEMENT → VERIFY → LINT → COMMIT (only if asked)
 - Identify which files need to be created or modified.
 - Identify which `shared/` functions the new code depends on.
 - Check if the dependency already exists or needs to be created first.
-- Update `plan/plan.md` checklist if a new subtask is discovered.
+- Update `plan/PLAN.md` checklist if a new subtask is discovered.
 
 ### Step 2 — Implement
 
-- Write code following all rules in `guildelines.md`.
+- Write code following all rules in `GUIDELINES.md`.
 - Start from the bottom of the dependency chain: `shared/config.py` → `shared/db.py` → `shared/ingest.py` → `shared/roster.py` → `shared/queries.py` → `cli/` → `dashboard/`.
 - Do not skip ahead. Each layer depends on the one before it.
 
@@ -85,7 +85,7 @@ pip install mypy ruff
 
 ### Step 5 — Commit
 
-Only commit when explicitly asked by the user. Follow commit message format from `guildelines.md` §10.
+Only commit when explicitly asked by the user. Follow commit message format from `GUIDELINES.md` §10.
 
 ---
 
@@ -224,6 +224,6 @@ Before marking any task as done, confirm:
 ## When You Finish
 
 1. Run the full verification checklist above.
-2. Update `plan/plan.md` — mark completed items with `[x]`.
+2. Update `plan/PLAN.md` — mark completed items with `[x]`.
 3. Do NOT commit unless the user explicitly asks.
 4. Report what you did, what works, and what remains.
