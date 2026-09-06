@@ -23,9 +23,19 @@ from datetime import date
 import yfinance as yf
 
 from shared.config import load_db_config
-from shared.db import get_connection
+from shared.db import get_connection, list_currencies
 from shared.ingest import sync_ticker
 from shared.logging_setup import setup_logging
+from shared.portfolio import (
+    PortfolioError,
+    add_security,
+    create_portfolio,
+    delete_portfolio,
+    get_portfolio_detail,
+    list_portfolios,
+    remove_security,
+    set_weights,
+)
 from shared.roster import add_ticker_to_roster, read_roster, write_roster
 
 log: logging.Logger = logging.getLogger(__name__)
@@ -152,11 +162,247 @@ def do_list() -> None:
         )
 
 
+# --------------------------------------------------------------------------- #
+# Portfolio actions
+# --------------------------------------------------------------------------- #
+def do_portfolio_list(conn: object) -> None:
+    """List all portfolios."""
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios. Use 'pn' to create one.")
+        return
+    log.info("%-5s %-25s %-8s %-12s", "ID", "NAME", "CURRENCY", "SECURITIES")
+    for p in portfolios:
+        log.info(
+            "%-5d %-25s %-8s %-12d",
+            p["id"], p["name"], p["currency"], p["security_count"],
+        )
+
+
+def do_portfolio_new(conn: object) -> None:
+    """Create a new portfolio."""
+    name = input("  Portfolio name: ").strip()
+    if not name:
+        log.error("Name cannot be empty.")
+        return
+
+    currencies = list_currencies(conn)
+    log.info("Available currencies: %s", ", ".join(currencies))
+    currency = input("  Currency: ").strip().upper()
+    if currency not in currencies:
+        log.error("Invalid currency. Choose from: %s", ", ".join(currencies))
+        return
+
+    try:
+        pid = create_portfolio(conn, name, currency)
+        log.info("Created portfolio '%s' (id=%d, currency=%s)", name, pid, currency)
+    except Exception as e:
+        log.error("Failed to create portfolio: %s", e)
+
+
+def do_portfolio_add(conn: object) -> None:
+    """Add a security to a portfolio."""
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios. Use 'pn' to create one.")
+        return
+
+    log.info("Available portfolios:")
+    for p in portfolios:
+        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
+
+    try:
+        pid = int(input("  Portfolio ID: ").strip())
+    except ValueError:
+        log.error("Invalid ID.")
+        return
+
+    ticker = input("  Ticker symbol: ").strip().upper()
+    if not ticker:
+        log.error("Ticker cannot be empty.")
+        return
+
+    try:
+        weight = float(input("  Weight (0.0 to 1.0): ").strip())
+    except ValueError:
+        log.error("Invalid weight.")
+        return
+
+    try:
+        add_security(conn, pid, ticker, weight)
+        log.info("Added %s to portfolio id=%d (weight=%.4f)", ticker, pid, weight)
+    except PortfolioError as e:
+        log.error("Failed: %s", e)
+
+
+def do_portfolio_remove(conn: object) -> None:
+    """Remove a security from a portfolio."""
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios.")
+        return
+
+    log.info("Available portfolios:")
+    for p in portfolios:
+        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
+
+    try:
+        pid = int(input("  Portfolio ID: ").strip())
+    except ValueError:
+        log.error("Invalid ID.")
+        return
+
+    detail = get_portfolio_detail(conn, pid)
+    if detail is None:
+        log.error("Portfolio not found.")
+        return
+
+    if not detail["securities"]:
+        log.info("Portfolio has no securities.")
+        return
+
+    log.info("Securities in '%s':", detail["name"])
+    for s in detail["securities"]:
+        log.info("  %s (weight=%.2f%%, sector=%s)", s["ticker"], s["weight"] * 100, s["sector"])
+
+    ticker = input("  Ticker to remove: ").strip().upper()
+    remove_security(conn, pid, ticker)
+    log.info("Removed %s from portfolio id=%d", ticker, pid)
+
+
+def do_portfolio_weights(conn: object) -> None:
+    """Set weights for a portfolio."""
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios.")
+        return
+
+    log.info("Available portfolios:")
+    for p in portfolios:
+        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
+
+    try:
+        pid = int(input("  Portfolio ID: ").strip())
+    except ValueError:
+        log.error("Invalid ID.")
+        return
+
+    detail = get_portfolio_detail(conn, pid)
+    if detail is None:
+        log.error("Portfolio not found.")
+        return
+
+    if not detail["securities"]:
+        log.info("Portfolio has no securities. Add some first with 'pa'.")
+        return
+
+    log.info("Current weights for '%s':", detail["name"])
+    for s in detail["securities"]:
+        log.info("  %s: %.2f%%", s["ticker"], s["weight"] * 100)
+
+    log.info("Enter new weights (must sum to 100%%):")
+    weights = {}
+    for s in detail["securities"]:
+        try:
+            w = float(input(f"  {s['ticker']}: ").strip()) / 100.0
+            weights[s["ticker"]] = w
+        except ValueError:
+            log.error("Invalid weight for %s.", s["ticker"])
+            return
+
+    try:
+        set_weights(conn, pid, weights)
+        log.info("Weights updated for portfolio '%s'", detail["name"])
+    except PortfolioError as e:
+        log.error("Failed: %s", e)
+
+
+def do_portfolio_delete(conn: object) -> None:
+    """Delete a portfolio."""
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios.")
+        return
+
+    log.info("Available portfolios:")
+    for p in portfolios:
+        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
+
+    try:
+        pid = int(input("  Portfolio ID to delete: ").strip())
+    except ValueError:
+        log.error("Invalid ID.")
+        return
+
+    detail = get_portfolio_detail(conn, pid)
+    if detail is None:
+        log.error("Portfolio not found.")
+        return
+
+    confirm = input(f"  Delete '{detail['name']}'? (yes/no): ").strip().lower()
+    if confirm != "yes":
+        log.info("Cancelled.")
+        return
+
+    delete_portfolio(conn, pid)
+    log.info("Deleted portfolio '%s'", detail["name"])
+
+
+def do_portfolio_exposure(conn: object) -> None:
+    """Show portfolio exposure."""
+    from shared.calculations import portfolio_exposure
+
+    portfolios = list_portfolios(conn)
+    if not portfolios:
+        log.info("No portfolios.")
+        return
+
+    log.info("Available portfolios:")
+    for p in portfolios:
+        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
+
+    try:
+        pid = int(input("  Portfolio ID: ").strip())
+    except ValueError:
+        log.error("Invalid ID.")
+        return
+
+    detail = get_portfolio_detail(conn, pid)
+    if detail is None:
+        log.error("Portfolio not found.")
+        return
+
+    exposure = portfolio_exposure(conn, pid)
+
+    log.info("\n=== Portfolio: %s (%s) ===", detail["name"], detail["currency"])
+    log.info("Securities: %d, Total weight: %.2f%%\n", len(detail["securities"]), detail["total_weight"] * 100)
+
+    log.info("--- Sector Exposure ---")
+    log.info("  %-30s %-10s %s", "SECTOR", "WEIGHT", "TICKERS")
+    for s in exposure["sector"]:
+        log.info("  %-30s %-10.2f%% %s", s["sector"], s["weight"] * 100, ", ".join(s["tickers"]))
+
+    log.info("\n--- Industry Exposure ---")
+    log.info("  %-30s %-10s %s", "INDUSTRY", "WEIGHT", "TICKERS")
+    for ind in exposure["industry"]:
+        log.info("  %-30s %-10.2f%% %s", ind["industry"], ind["weight"] * 100, ", ".join(ind["tickers"]))
+
+
 MENU = """\033[1;34m
 === r9_analytics ingestion ===
   update        sync all tickers with latest data
   add SYMBOL    add a new ticker to the roster
   list          show roster + sync state
+
+=== portfolios ===
+  pl            list portfolios
+  pn            create new portfolio
+  pa            add security to portfolio
+  pr            remove security from portfolio
+  pw            set weights for a portfolio
+  pd            delete portfolio
+  px            show portfolio exposure
+
   exit          quit
 \033[0m"""
 
@@ -198,6 +444,27 @@ def main() -> None:
                 do_add(conn, sym)
         elif choice == "list":
             do_list()
+        elif choice == "pl":
+            with get_connection(cfg) as conn:
+                do_portfolio_list(conn)
+        elif choice == "pn":
+            with get_connection(cfg) as conn:
+                do_portfolio_new(conn)
+        elif choice == "pa":
+            with get_connection(cfg) as conn:
+                do_portfolio_add(conn)
+        elif choice == "pr":
+            with get_connection(cfg) as conn:
+                do_portfolio_remove(conn)
+        elif choice == "pw":
+            with get_connection(cfg) as conn:
+                do_portfolio_weights(conn)
+        elif choice == "pd":
+            with get_connection(cfg) as conn:
+                do_portfolio_delete(conn)
+        elif choice == "px":
+            with get_connection(cfg) as conn:
+                do_portfolio_exposure(conn)
         elif choice == "":
             continue
         else:
