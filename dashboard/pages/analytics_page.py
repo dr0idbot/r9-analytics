@@ -190,15 +190,30 @@ with tab_compare:
                     metrics_list.append({
                         "Ticker": ticker,
                         "Currency": cur,
-                        "Current Price": _currency_fmt(series.iloc[-1], cur),
-                        "Total Return": f"{cum_returns.iloc[-1] * 100:.1f}%" if not cum_returns.empty else "N/A",
-                        "CAGR": f"{_calculate_cagr(series) * 100:.1f}%" if _calculate_cagr(series) is not None else "N/A",
-                        "Max Drawdown": f"{_calculate_max_drawdown(series) * 100:.1f}%",
-                        "Volatility (Ann.)": f"{returns.std() * np.sqrt(252) * 100:.1f}%" if not returns.empty else "N/A",
+                        "Current Price": series.iloc[-1],
+                        "Total Return (%)": cum_returns.iloc[-1] * 100 if not cum_returns.empty else None,
+                        "CAGR (%)": _calculate_cagr(series) * 100 if _calculate_cagr(series) is not None else None,
+                        "Max Drawdown (%)": _calculate_max_drawdown(series) * 100,
+                        "Volatility (Ann. %)": returns.std() * np.sqrt(252) * 100 if not returns.empty else None,
                     })
 
                 if metrics_list:
-                    styled_df(pd.DataFrame(metrics_list), width="stretch", hide_index=True)
+                    metrics_df = pd.DataFrame(metrics_list)
+                    styler = metrics_df.style
+                    styler = styler.format({
+                        "Current Price": "${:,.2f}",
+                        "Total Return (%)": "{:.1f}%",
+                        "CAGR (%)": "{:.1f}%",
+                        "Max Drawdown (%)": "{:.1f}%",
+                        "Volatility (Ann. %)": "{:.1f}%",
+                    }, na_rep="N/A")
+                    styler = styler.apply(
+                        lambda col: ["text-align: right"] * len(col)
+                        if pd.api.types.is_numeric_dtype(col.dtype)
+                        else [""],
+                        axis=0,
+                    )
+                    st.dataframe(styler, width="stretch", hide_index=True)
 
 # ================================================================== #
 # Tab 2: Sector Breakdown
