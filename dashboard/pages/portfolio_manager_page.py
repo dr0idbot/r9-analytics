@@ -221,10 +221,9 @@ with tab_add:
             with col2:
                 units = st.number_input(
                     "Number of Units",
-                    min_value=0.01,
-                    value=1.0,
-                    step=0.01,
-                    format="%.4f",
+                    min_value=1,
+                    value=1,
+                    step=1,
                 )
 
             buy_date = st.date_input("Buy Date", value=date.today())

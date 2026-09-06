@@ -66,14 +66,14 @@ def create_portfolio(conn: psycopg.Connection, name: str, currency: str) -> int:
 
 def add_security(
     conn: psycopg.Connection, portfolio_id: int, ticker: str,
-    buy_price: float, buy_date: date, units: float
+    buy_price: float, buy_date: date, units: int
 ) -> None:
     """Add or update a security in a portfolio.
 
     Validates:
     - Ticker exists in tickers table
     - Ticker currency matches portfolio currency
-    - buy_price and units are positive
+    - buy_price is positive and units is a positive integer
 
     Args:
         conn: Database connection.
@@ -81,7 +81,7 @@ def add_security(
         ticker: Ticker symbol.
         buy_price: Price per unit at purchase.
         buy_date: Date of purchase.
-        units: Number of units/shares.
+        units: Number of units/shares (integer).
 
     Raises:
         TickerNotFoundError: If ticker doesn't exist.
@@ -94,13 +94,13 @@ def add_security(
 
     if buy_price <= 0:
         raise PortfolioError(f"buy_price must be positive, got {buy_price}")
-    if units <= 0:
-        raise PortfolioError(f"units must be positive, got {units}")
+    if not isinstance(units, int) or units <= 0:
+        raise PortfolioError(f"units must be a positive integer, got {units}")
 
     _validate_currency_match(conn, portfolio["currency"], ticker)
     upsert_portfolio_security(conn, portfolio_id, ticker.upper(), buy_price, buy_date, units)
     logger.info(
-        "Added %s to portfolio '%s' (buy_price=%.2f, units=%.4f)",
+        "Added %s to portfolio '%s' (buy_price=%.2f, units=%d)",
         ticker, portfolio["name"], buy_price, units,
     )
 

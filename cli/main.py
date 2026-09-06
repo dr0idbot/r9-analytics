@@ -237,15 +237,15 @@ def do_portfolio_add(conn: object) -> None:
         return
 
     try:
-        units = float(input("  Number of units: ").strip())
+        units = int(input("  Number of units: ").strip())
     except ValueError:
-        log.error("Invalid units.")
+        log.error("Invalid units. Must be an integer.")
         return
 
     try:
         add_security(conn, pid, ticker, buy_price, buy_date, units)
         log.info(
-            "Added %s to portfolio id=%d (price=%.2f, units=%.4f)",
+            "Added %s to portfolio id=%d (price=%.2f, units=%d)",
             ticker, pid, buy_price, units,
         )
     except PortfolioError as e:

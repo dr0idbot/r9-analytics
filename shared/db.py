@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS market.portfolio_securities (
     ticker        TEXT NOT NULL REFERENCES market.tickers(ticker),
     buy_price     NUMERIC(12,4) NOT NULL,
     buy_date      DATE NOT NULL,
-    units         NUMERIC(12,4) NOT NULL,
+    units         INT NOT NULL,
     PRIMARY KEY (portfolio_id, ticker)
 )
 """
@@ -295,7 +295,7 @@ def delete_portfolio(conn: psycopg.Connection, portfolio_id: int) -> None:
 
 def upsert_portfolio_security(
     conn: psycopg.Connection, portfolio_id: int, ticker: str,
-    buy_price: float, buy_date: object, units: float
+    buy_price: float, buy_date: object, units: int
 ) -> None:
     """Add or update a security in a portfolio."""
     conn.execute(
@@ -315,7 +315,7 @@ def get_portfolio_securities(conn: psycopg.Connection, portfolio_id: int) -> lis
     return [
         {
             "ticker": r[0], "buy_price": float(r[1]), "buy_date": r[2],
-            "units": float(r[3]), "name": r[4], "sector": r[5],
+            "units": int(r[3]), "name": r[4], "sector": r[5],
             "industry": r[6], "currency": r[7],
         }
         for r in conn.execute(Q_GET_PORTFOLIO_SECURITIES, (portfolio_id,)).fetchall()
