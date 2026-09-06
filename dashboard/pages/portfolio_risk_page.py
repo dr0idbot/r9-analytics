@@ -4,7 +4,8 @@ from __future__ import annotations
 import streamlit as st
 
 from shared.config import load_db_config
-from shared.db import get_connection, list_portfolios, get_portfolio_detail
+from shared.db import get_connection
+from shared.portfolio import list_portfolios, get_portfolio_detail
 from shared.calculations import (
     portfolio_risk,
     save_portfolio_risk,
