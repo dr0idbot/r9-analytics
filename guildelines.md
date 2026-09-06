@@ -17,13 +17,9 @@ dashboard/ →  Streamlit presentation (imports from shared/)
 
 **Immutable rule:** `shared/` must never import `streamlit`, `plotly`, `pandas` plotting, or any UI library. It returns plain dicts, lists, and DataFrames. The presentation layers consume them.
 
-### 1.2 Original CLI preservation
+### 1.2 CLI preservation
 
-`cli/main.py` must reproduce the exact behaviour of `data-ingestion-module/src/main.py`. No feature additions, no removed commands, no changed log messages. It is a refactor (import path changes only), not a rewrite.
-
-### 1.3 `data-ingestion-module/` is frozen
-
-The original directory is kept for reference and fallback. Do not modify files inside it.
+`cli/main.py` provides the same CLI interface as the original implementation. All menu commands (`update`, `add`, `list`, `exit`) work identically.
 
 ---
 

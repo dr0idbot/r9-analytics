@@ -14,9 +14,7 @@
 | Entry points (after build) | `python -m cli.main` (CLI), `streamlit run dashboard/app.py` (dashboard) |
 | Config dir | `config/` |
 | Shared logic | `shared/` |
-| Original code (frozen) | `data-ingestion-module/` |
 | Guidelines | `guildelines.md` |
-| Plan | `plan/plan.md` |
 
 ---
 
@@ -140,10 +138,6 @@ If you accidentally add `import streamlit as st` to any file in `shared/`, the b
 grep -r "import streamlit" shared/
 # Must return nothing
 ```
-
-### Never modify data-ingestion-module/
-
-The original code is frozen. If you need to reference how something works, read it. Do not edit.
 
 ### Always use type hints
 
