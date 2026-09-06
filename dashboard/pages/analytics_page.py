@@ -16,7 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from shared.config import PROJECT_ROOT
+from shared.config import PROJECT_ROOT, load_db_config
 from shared.db import get_connection
 from shared.queries import (
     get_all_tickers,
