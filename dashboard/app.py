@@ -30,6 +30,7 @@ pg = st.navigation(
         ],
         "Risk": [
             st.Page("pages/risk_analysis_page.py", title="Risk Analysis", icon=":material/shield:"),
+            st.Page("pages/scenario_analysis_page.py", title="Scenario Analysis", icon=":material/science:"),
         ],
     }
 )

@@ -357,6 +357,46 @@ def do_risk(conn: object) -> None:
     log.info("  Tracking Error:         %8.4f", risk["tracking_error"])
 
 
+def do_scenario(conn: object) -> None:
+    """Show scenario analysis for a ticker."""
+    from shared.calculations import scenario_analysis
+
+    ticker = input("  Ticker symbol: ").strip().upper()
+    if not ticker:
+        log.error("Ticker cannot be empty.")
+        return
+
+    result = scenario_analysis(conn, ticker)
+
+    log.info("\n=== Scenario Analysis: %s ===", result["ticker"])
+
+    log.info("\n--- Historical Stress Test ---")
+    if result["stress_test"]:
+        log.info("  %-30s %-12s %-12s %-12s", "CRISIS", "RETURN", "CURRENT", "PROJECTED")
+        for s in result["stress_test"]:
+            log.info("  %-30s %-12.1f%% %-12.2f %-12.2f",
+                     s["crisis"], s["crisis_return"] * 100, s["current_price"], s["projected_price"])
+    else:
+        log.info("  No crisis data available.")
+
+    dd = result["drawdown"]
+    log.info("\n--- Drawdown Duration ---")
+    log.info("  Max Duration:       %d days", dd["max_drawdown_duration"])
+    log.info("  Current Duration:   %d days", dd["current_drawdown_duration"])
+    log.info("  Drawdown Events:    %d", dd["drawdown_events"])
+
+    wr = result["win_rate"]
+    log.info("\n--- Win Rate (Monthly) ---")
+    log.info("  Win Rate:           %.1f%%", wr["win_rate"] * 100)
+    log.info("  Winning Months:     %d / %d", wr["winning_periods"], wr["total_periods"])
+
+    log.info("\n--- Profit Factor ---")
+    if result["profit_factor"] is not None:
+        log.info("  Profit Factor:      %.4f", result["profit_factor"])
+    else:
+        log.info("  Profit Factor:      N/A (no losses)")
+
+
 def do_portfolio_exposure(conn: object) -> None:
     """Show portfolio exposure."""
     from shared.calculations import portfolio_exposure
@@ -487,6 +527,7 @@ MENU = """\033[1;34m
 
 === analytics ===
   risk          show single-asset risk metrics
+  scenario      show scenario analysis
 
   exit          quit
 \033[0m"""
@@ -553,6 +594,9 @@ def main() -> None:
         elif choice == "risk":
             with get_connection(cfg) as conn:
                 do_risk(conn)
+        elif choice == "scenario":
+            with get_connection(cfg) as conn:
+                do_scenario(conn)
         elif choice == "":
             continue
         else:

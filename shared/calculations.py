@@ -1062,3 +1062,193 @@ def load_latest_portfolio_risk(conn: psycopg.Connection, portfolio_id: int) -> d
         Dict with portfolio risk metrics and calc_time, or None if not found.
     """
     return get_latest_portfolio_risk(conn, portfolio_id)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 5 — Scenario Analysis
+# --------------------------------------------------------------------------- #
+
+# Historical crisis periods (approximate peak-to-trough dates)
+CRISIS_PERIODS = {
+    "COVID Crash (2020)": ("2020-02-19", "2020-03-23"),
+    "2008 Financial Crisis": ("2007-10-09", "2009-03-09"),
+    "Dot-com Bubble (2000)": ("2000-03-10", "2002-10-09"),
+    "2022 Bear Market": ("2022-01-03", "2022-10-12"),
+}
+
+
+def historical_stress_test(conn: psycopg.Connection, ticker: str) -> list[dict]:
+    """Apply historical crisis returns to current ticker.
+
+    Computes what would happen if the current ticker experienced
+    the same percentage declines as during past crises.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        List of dicts with crisis name, crisis decline, and projected impact.
+    """
+    df = get_candles_df(conn, ticker)
+    if df is None or df.empty:
+        return []
+
+    results = []
+    for crisis_name, (start_date, end_date) in CRISIS_PERIODS.items():
+        crisis_df = df.loc[start_date:end_date]
+        if crisis_df.empty or len(crisis_df) < 2:
+            continue
+
+        # Calculate crisis return (peak to trough)
+        crisis_return = float(crisis_df["adj_close"].iloc[-1] / crisis_df["adj_close"].iloc[0] - 1)
+
+        # Apply to current price
+        current_price = float(df["adj_close"].iloc[-1])
+        projected_price = current_price * (1 + crisis_return)
+
+        results.append({
+            "crisis": crisis_name,
+            "crisis_return": crisis_return,
+            "current_price": current_price,
+            "projected_price": projected_price,
+            "projected_loss": current_price - projected_price,
+        })
+
+    return sorted(results, key=lambda x: x["crisis_return"])
+
+
+def drawdown_duration(conn: psycopg.Connection, ticker: str) -> dict:
+    """Compute drawdown duration and recovery time.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Dict with max_drawdown_duration, current_drawdown_duration,
+        max_recovery_time, and drawdown_events.
+    """
+    df = get_candles_df(conn, ticker)
+    if df is None or df.empty:
+        return {"max_drawdown_duration": 0, "current_drawdown_duration": 0,
+                "max_recovery_time": 0, "drawdown_events": 0}
+
+    prices = df["adj_close"]
+    peak = prices.expanding().max()
+    drawdown = (prices - peak) / peak
+
+    # Find drawdown periods
+    in_drawdown = drawdown < 0
+    drawdown_starts = in_drawdown & ~in_drawdown.shift(1).fillna(False)
+    drawdown_ends = ~in_drawdown & in_drawdown.shift(1).fillna(False)
+
+    durations = []
+    recovery_times = []
+    start_idx = None
+
+    for i, (start, end) in enumerate(zip(drawdown_starts, drawdown_ends)):
+        if start:
+            start_idx = i
+        if end and start_idx is not None:
+            duration = i - start_idx
+            durations.append(duration)
+            # Recovery time is time from trough to peak recovery
+            recovery_times.append(duration)
+            start_idx = None
+
+    # Current drawdown if still in one
+    if start_idx is not None:
+        current_duration = len(prices) - start_idx
+    else:
+        current_duration = 0
+
+    return {
+        "max_drawdown_duration": max(durations) if durations else 0,
+        "current_drawdown_duration": current_duration,
+        "max_recovery_time": max(recovery_times) if recovery_times else 0,
+        "drawdown_events": len(durations),
+    }
+
+
+def win_rate(conn: psycopg.Connection, ticker: str, period: str = "monthly") -> dict:
+    """Compute win rate (% of positive return periods).
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        period: 'daily', 'weekly', or 'monthly'.
+
+    Returns:
+        Dict with win_rate, total_periods, winning_periods, losing_periods.
+    """
+    df = get_candles_df(conn, ticker)
+    if df is None or df.empty:
+        return {"win_rate": 0, "total_periods": 0, "winning_periods": 0, "losing_periods": 0}
+
+    prices = df["adj_close"]
+
+    if period == "daily":
+        returns = prices.pct_change().dropna()
+    elif period == "weekly":
+        weekly = prices.resample("W").last().dropna()
+        returns = weekly.pct_change().dropna()
+    elif period == "monthly":
+        monthly = prices.resample("ME").last().dropna()
+        returns = monthly.pct_change().dropna()
+    else:
+        return {"win_rate": 0, "total_periods": 0, "winning_periods": 0, "losing_periods": 0}
+
+    total = len(returns)
+    winning = int((returns > 0).sum())
+    losing = int((returns < 0).sum())
+
+    return {
+        "win_rate": winning / total if total > 0 else 0,
+        "total_periods": total,
+        "winning_periods": winning,
+        "losing_periods": losing,
+    }
+
+
+def profit_factor(conn: psycopg.Connection, ticker: str) -> float | None:
+    """Compute profit factor: gross gains / gross losses.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Profit factor (>1 = profitable), or None if no losses.
+    """
+    df = get_candles_df(conn, ticker)
+    if df is None or df.empty:
+        return None
+
+    returns = df["adj_close"].pct_change().dropna()
+    gains = returns[returns > 0].sum()
+    losses = abs(returns[returns < 0].sum())
+
+    if losses == 0:
+        return None
+
+    return float(gains / losses)
+
+
+def scenario_analysis(conn: psycopg.Connection, ticker: str) -> dict:
+    """Compute all scenario analysis metrics for a ticker.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Dict with all scenario analysis metrics.
+    """
+    return {
+        "ticker": ticker,
+        "stress_test": historical_stress_test(conn, ticker),
+        "drawdown": drawdown_duration(conn, ticker),
+        "win_rate": win_rate(conn, ticker),
+        "profit_factor": profit_factor(conn, ticker),
+    }
