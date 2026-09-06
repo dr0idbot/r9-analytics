@@ -64,11 +64,13 @@ if result["stress_test"]:
     )
     st.plotly_chart(fig, width="stretch")
 
-    # Table
+    # Table — convert returns to percentages for display
+    stress_df = pd.DataFrame(result["stress_test"])
+    stress_df["crisis_return"] = stress_df["crisis_return"] * 100
     styled_df(
-        pd.DataFrame(result["stress_test"]),
+        stress_df,
         column_config={
-            "crisis_return": st.column_config.NumberColumn("Crisis Return", format="%.1%%"),
+            "crisis_return": st.column_config.NumberColumn("Crisis Return", format="%.1f%%"),
             "current_price": st.column_config.NumberColumn("Current Price", format="$%.2f"),
             "projected_price": st.column_config.NumberColumn("Projected Price", format="$%.2f"),
             "projected_loss": st.column_config.NumberColumn("Projected Loss", format="$%.2f"),
