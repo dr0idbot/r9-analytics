@@ -135,7 +135,9 @@ Q_CREATE_PORTFOLIO_SECURITIES = """
 CREATE TABLE IF NOT EXISTS market.portfolio_securities (
     portfolio_id  INT NOT NULL REFERENCES market.portfolios(id) ON DELETE CASCADE,
     ticker        TEXT NOT NULL REFERENCES market.tickers(ticker),
-    weight        NUMERIC(5,4) NOT NULL,
+    buy_price     NUMERIC(12,4) NOT NULL,
+    buy_date      DATE NOT NULL,
+    units         NUMERIC(12,4) NOT NULL,
     PRIMARY KEY (portfolio_id, ticker)
 )
 """
@@ -168,9 +170,12 @@ DELETE FROM market.portfolios WHERE id = %s
 """
 
 Q_UPSERT_PORTFOLIO_SECURITY = """
-INSERT INTO market.portfolio_securities (portfolio_id, ticker, weight)
-VALUES (%(portfolio_id)s, %(ticker)s, %(weight)s)
-ON CONFLICT (portfolio_id, ticker) DO UPDATE SET weight = EXCLUDED.weight
+INSERT INTO market.portfolio_securities (portfolio_id, ticker, buy_price, buy_date, units)
+VALUES (%(portfolio_id)s, %(ticker)s, %(buy_price)s, %(buy_date)s, %(units)s)
+ON CONFLICT (portfolio_id, ticker) DO UPDATE SET
+    buy_price = EXCLUDED.buy_price,
+    buy_date = EXCLUDED.buy_date,
+    units = EXCLUDED.units
 """
 
 Q_DELETE_PORTFOLIO_SECURITY = """
@@ -179,11 +184,12 @@ WHERE portfolio_id = %s AND ticker = %s
 """
 
 Q_GET_PORTFOLIO_SECURITIES = """
-SELECT ps.ticker, ps.weight, t.name, t.sector, t.industry, t.currency
+SELECT ps.ticker, ps.buy_price, ps.buy_date, ps.units,
+       t.name, t.sector, t.industry, t.currency
 FROM market.portfolio_securities ps
 JOIN market.tickers t ON t.ticker = ps.ticker
 WHERE ps.portfolio_id = %s
-ORDER BY ps.weight DESC
+ORDER BY (ps.units * ps.buy_price) DESC
 """
 
 Q_GET_TICKER_CURRENCY = """
@@ -288,12 +294,14 @@ def delete_portfolio(conn: psycopg.Connection, portfolio_id: int) -> None:
 
 
 def upsert_portfolio_security(
-    conn: psycopg.Connection, portfolio_id: int, ticker: str, weight: float
+    conn: psycopg.Connection, portfolio_id: int, ticker: str,
+    buy_price: float, buy_date: object, units: float
 ) -> None:
     """Add or update a security in a portfolio."""
     conn.execute(
         Q_UPSERT_PORTFOLIO_SECURITY,
-        {"portfolio_id": portfolio_id, "ticker": ticker, "weight": weight},
+        {"portfolio_id": portfolio_id, "ticker": ticker,
+         "buy_price": buy_price, "buy_date": buy_date, "units": units},
     )
 
 
@@ -306,8 +314,9 @@ def get_portfolio_securities(conn: psycopg.Connection, portfolio_id: int) -> lis
     """Return securities in a portfolio with ticker metadata."""
     return [
         {
-            "ticker": r[0], "weight": float(r[1]), "name": r[2],
-            "sector": r[3], "industry": r[4], "currency": r[5],
+            "ticker": r[0], "buy_price": float(r[1]), "buy_date": r[2],
+            "units": float(r[3]), "name": r[4], "sector": r[5],
+            "industry": r[6], "currency": r[7],
         }
         for r in conn.execute(Q_GET_PORTFOLIO_SECURITIES, (portfolio_id,)).fetchall()
     ]

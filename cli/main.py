@@ -34,7 +34,6 @@ from shared.portfolio import (
     get_portfolio_detail,
     list_portfolios,
     remove_security,
-    set_weights,
 )
 from shared.roster import add_ticker_to_roster, read_roster, write_roster
 
@@ -202,6 +201,8 @@ def do_portfolio_new(conn: object) -> None:
 
 def do_portfolio_add(conn: object) -> None:
     """Add a security to a portfolio."""
+    from datetime import date as date_type
+
     portfolios = list_portfolios(conn)
     if not portfolios:
         log.info("No portfolios. Use 'pn' to create one.")
@@ -223,14 +224,30 @@ def do_portfolio_add(conn: object) -> None:
         return
 
     try:
-        weight = float(input("  Weight (0.0 to 1.0): ").strip())
+        buy_price = float(input("  Buy price per unit: ").strip())
     except ValueError:
-        log.error("Invalid weight.")
+        log.error("Invalid buy price.")
+        return
+
+    date_str = input("  Buy date (YYYY-MM-DD): ").strip()
+    try:
+        buy_date = date_type.fromisoformat(date_str)
+    except ValueError:
+        log.error("Invalid date format. Use YYYY-MM-DD.")
         return
 
     try:
-        add_security(conn, pid, ticker, weight)
-        log.info("Added %s to portfolio id=%d (weight=%.4f)", ticker, pid, weight)
+        units = float(input("  Number of units: ").strip())
+    except ValueError:
+        log.error("Invalid units.")
+        return
+
+    try:
+        add_security(conn, pid, ticker, buy_price, buy_date, units)
+        log.info(
+            "Added %s to portfolio id=%d (price=%.2f, units=%.4f)",
+            ticker, pid, buy_price, units,
+        )
     except PortfolioError as e:
         log.error("Failed: %s", e)
 
@@ -263,58 +280,14 @@ def do_portfolio_remove(conn: object) -> None:
 
     log.info("Securities in '%s':", detail["name"])
     for s in detail["securities"]:
-        log.info("  %s (weight=%.2f%%, sector=%s)", s["ticker"], s["weight"] * 100, s["sector"])
+        log.info(
+            "  %s (buy_price=%.2f, units=%.4f, weight=%.2f%%, sector=%s)",
+            s["ticker"], s["buy_price"], s["units"], s["weight"] * 100, s["sector"],
+        )
 
     ticker = input("  Ticker to remove: ").strip().upper()
     remove_security(conn, pid, ticker)
     log.info("Removed %s from portfolio id=%d", ticker, pid)
-
-
-def do_portfolio_weights(conn: object) -> None:
-    """Set weights for a portfolio."""
-    portfolios = list_portfolios(conn)
-    if not portfolios:
-        log.info("No portfolios.")
-        return
-
-    log.info("Available portfolios:")
-    for p in portfolios:
-        log.info("  %d: %s (%s, %d securities)", p["id"], p["name"], p["currency"], p["security_count"])
-
-    try:
-        pid = int(input("  Portfolio ID: ").strip())
-    except ValueError:
-        log.error("Invalid ID.")
-        return
-
-    detail = get_portfolio_detail(conn, pid)
-    if detail is None:
-        log.error("Portfolio not found.")
-        return
-
-    if not detail["securities"]:
-        log.info("Portfolio has no securities. Add some first with 'pa'.")
-        return
-
-    log.info("Current weights for '%s':", detail["name"])
-    for s in detail["securities"]:
-        log.info("  %s: %.2f%%", s["ticker"], s["weight"] * 100)
-
-    log.info("Enter new weights (must sum to 100%%):")
-    weights = {}
-    for s in detail["securities"]:
-        try:
-            w = float(input(f"  {s['ticker']}: ").strip()) / 100.0
-            weights[s["ticker"]] = w
-        except ValueError:
-            log.error("Invalid weight for %s.", s["ticker"])
-            return
-
-    try:
-        set_weights(conn, pid, weights)
-        log.info("Weights updated for portfolio '%s'", detail["name"])
-    except PortfolioError as e:
-        log.error("Failed: %s", e)
 
 
 def do_portfolio_delete(conn: object) -> None:
@@ -399,7 +372,6 @@ MENU = """\033[1;34m
   pn            create new portfolio
   pa            add security to portfolio
   pr            remove security from portfolio
-  pw            set weights for a portfolio
   pd            delete portfolio
   px            show portfolio exposure
 
@@ -456,9 +428,6 @@ def main() -> None:
         elif choice == "pr":
             with get_connection(cfg) as conn:
                 do_portfolio_remove(conn)
-        elif choice == "pw":
-            with get_connection(cfg) as conn:
-                do_portfolio_weights(conn)
         elif choice == "pd":
             with get_connection(cfg) as conn:
                 do_portfolio_delete(conn)

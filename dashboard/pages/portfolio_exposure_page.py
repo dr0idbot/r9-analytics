@@ -9,7 +9,6 @@ import logging
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from shared.config import load_db_config
@@ -68,7 +67,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("Name", detail["name"])
 c2.metric("Currency", detail["currency"])
 c3.metric("Securities", len(detail["securities"]))
-c4.metric("Sectors", len(exposure["sector"]))
+c4.metric("Total Value", f"{detail['currency']} {detail['total_value']:,.2f}")
 
 st.markdown("---")
 
@@ -150,13 +149,15 @@ else:
 with st.expander("View All Securities"):
     if detail["securities"]:
         sec_df = pd.DataFrame(detail["securities"])
-        sec_df["weight_pct"] = sec_df["weight"] * 100
         styled_df(
-            sec_df[["ticker", "name", "sector", "industry", "currency", "weight_pct"]].rename(
-                columns={"weight_pct": "Weight (%)"}
+            sec_df[["ticker", "name", "sector", "industry", "currency", "buy_price", "units", "market_value", "weight"]].rename(
+                columns={"buy_price": "Buy Price", "units": "Units", "market_value": "Market Value", "weight": "Weight"}
             ),
             column_config={
-                "Weight (%)": st.column_config.NumberColumn(alignment="right"),
+                "Buy Price": st.column_config.NumberColumn(alignment="right"),
+                "Units": st.column_config.NumberColumn(alignment="right"),
+                "Market Value": st.column_config.NumberColumn(alignment="right"),
+                "Weight": st.column_config.NumberColumn(alignment="right"),
             },
             width="stretch",
             hide_index=True,

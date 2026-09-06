@@ -6,7 +6,9 @@ All business logic is delegated to shared/ functions.
 from __future__ import annotations
 
 import logging
+from datetime import date, timedelta
 
+import pandas as pd
 import streamlit as st
 
 from shared.config import load_db_config
@@ -20,7 +22,6 @@ from shared.portfolio import (
     get_portfolio_detail,
     list_portfolios,
     remove_security,
-    set_weights,
 )
 
 from dashboard.components import styled_df
@@ -96,7 +97,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("Name", detail["name"])
 c2.metric("Currency", detail["currency"])
 c3.metric("Securities", len(detail["securities"]))
-c4.metric("Total Weight", f"{detail['total_weight'] * 100:.1f}%")
+c4.metric("Total Value", f"{detail['currency']} {detail['total_value']:,.2f}")
 
 # ------------------------------------------------------------------ #
 # Tabs
@@ -113,42 +114,23 @@ with tab_securities:
         st.info("No securities in this portfolio. Add some in the 'Add Security' tab.")
     else:
         # Display securities table
-        import pandas as pd
         sec_df = pd.DataFrame(detail["securities"])
-        sec_df["weight"] = sec_df["weight"].apply(lambda x: f"{x * 100:.2f}%")
+        sec_df["buy_price_fmt"] = sec_df["buy_price"].apply(lambda x: f"{x:,.2f}")
+        sec_df["units_fmt"] = sec_df["units"].apply(lambda x: f"{x:,.4f}")
+        sec_df["market_value_fmt"] = sec_df["market_value"].apply(lambda x: f"{x:,.2f}")
+        sec_df["weight_pct"] = sec_df["weight"].apply(lambda x: f"{x * 100:.2f}%")
         styled_df(
-            sec_df[["ticker", "name", "sector", "industry", "weight"]],
+            sec_df[["ticker", "name", "sector", "buy_price_fmt", "units_fmt", "market_value_fmt", "weight_pct"]].rename(
+                columns={
+                    "buy_price_fmt": "Buy Price",
+                    "units_fmt": "Units",
+                    "market_value_fmt": "Market Value",
+                    "weight_pct": "Weight",
+                }
+            ),
             width="stretch",
             hide_index=True,
         )
-
-        # Edit weights
-        st.subheader("Edit Weights")
-        st.info("Weights must sum to 100% (±0.1%).")
-
-        weights = {}
-        cols = st.columns(min(len(detail["securities"]), 4))
-        for i, sec in enumerate(detail["securities"]):
-            col = cols[i % len(cols)]
-            with col:
-                weights[sec["ticker"]] = st.number_input(
-                    f"{sec['ticker']}",
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=sec["weight"] * 100,
-                    step=0.5,
-                    format="%.2f",
-                    key=f"weight_{sec['ticker']}",
-                ) / 100.0
-
-        if st.button("Update Weights", type="primary"):
-            try:
-                with get_connection(config) as conn:
-                    set_weights(conn, selected_id, weights)
-                st.success("Weights updated!")
-                st.rerun()
-            except PortfolioError as e:
-                st.error(f"Failed: {e}")
 
         # Remove security
         st.subheader("Remove Security")
@@ -196,8 +178,6 @@ with tab_add:
     st.subheader("Add Security")
     st.info(f"Only tickers with currency {detail['currency']} can be added to this portfolio.")
 
-    from shared.db import get_ticker_currency
-
     try:
         with get_connection(config) as conn:
             all_tickers = conn.execute(
@@ -229,20 +209,31 @@ with tab_add:
             selected_ticker_label = st.selectbox("Select Ticker", list(ticker_options.keys()))
             selected_ticker = ticker_options[selected_ticker_label]
 
-            weight = st.number_input(
-                "Weight (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=0.0,
-                step=0.5,
-                format="%.2f",
-            )
+            col1, col2 = st.columns(2)
+            with col1:
+                buy_price = st.number_input(
+                    "Buy Price per Unit",
+                    min_value=0.01,
+                    value=100.0,
+                    step=0.01,
+                    format="%.2f",
+                )
+            with col2:
+                units = st.number_input(
+                    "Number of Units",
+                    min_value=0.01,
+                    value=1.0,
+                    step=0.01,
+                    format="%.4f",
+                )
+
+            buy_date = st.date_input("Buy Date", value=date.today())
 
             if st.button("Add Security", type="primary"):
                 try:
                     with get_connection(config) as conn:
-                        add_security(conn, selected_id, selected_ticker, weight / 100.0)
-                    st.success(f"Added {selected_ticker} with weight {weight:.2f}%")
+                        add_security(conn, selected_id, selected_ticker, buy_price, buy_date, units)
+                    st.success(f"Added {selected_ticker}")
                     st.rerun()
                 except PortfolioError as e:
                     st.error(f"Failed: {e}")
@@ -257,9 +248,14 @@ with tab_exposure:
         st.info("No securities to analyze.")
     else:
         import plotly.express as px
-        import plotly.graph_objects as go
 
-        exposure = portfolio_exposure(conn, selected_id)
+        try:
+            with get_connection(config) as conn:
+                exposure = portfolio_exposure(conn, selected_id)
+        except Exception as e:
+            st.error(f"Failed to calculate exposure: {e}")
+            logger.error("Failed to calculate exposure: %s", e)
+            st.stop()
 
         # Sector exposure
         st.markdown("#### Sector Exposure")

@@ -1,6 +1,6 @@
 """Portfolio exposure calculations.
 
-Computes sector and industry exposure from portfolio weights.
+Computes sector and industry exposure from portfolio holdings.
 All functions accept a psycopg Connection — no global state.
 """
 from __future__ import annotations
@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 def portfolio_sector_exposure(conn: psycopg.Connection, portfolio_id: int) -> list[dict]:
     """Compute sector exposure for a portfolio.
 
-    Groups securities by sector and sums their weights.
+    Groups securities by sector and sums their market values,
+    then converts to weights.
 
     Args:
         conn: Database connection.
@@ -35,13 +36,18 @@ def portfolio_sector_exposure(conn: psycopg.Connection, portfolio_id: int) -> li
         raise ValueError(f"Portfolio id {portfolio_id} not found")
 
     securities = get_portfolio_securities(conn, portfolio_id)
+    total_value = sum(s["buy_price"] * s["units"] for s in securities)
+
+    if total_value == 0:
+        return []
 
     sector_map: dict[str, dict] = {}
     for sec in securities:
         sector = sec["sector"] or "Unknown"
+        market_value = sec["buy_price"] * sec["units"]
         if sector not in sector_map:
             sector_map[sector] = {"sector": sector, "weight": 0.0, "tickers": []}
-        sector_map[sector]["weight"] += sec["weight"]
+        sector_map[sector]["weight"] += market_value / total_value
         sector_map[sector]["tickers"].append(sec["ticker"])
 
     result = sorted(sector_map.values(), key=lambda x: x["weight"], reverse=True)
@@ -55,7 +61,8 @@ def portfolio_sector_exposure(conn: psycopg.Connection, portfolio_id: int) -> li
 def portfolio_industry_exposure(conn: psycopg.Connection, portfolio_id: int) -> list[dict]:
     """Compute industry exposure for a portfolio.
 
-    Groups securities by industry and sums their weights.
+    Groups securities by industry and sums their market values,
+    then converts to weights.
 
     Args:
         conn: Database connection.
@@ -73,13 +80,18 @@ def portfolio_industry_exposure(conn: psycopg.Connection, portfolio_id: int) -> 
         raise ValueError(f"Portfolio id {portfolio_id} not found")
 
     securities = get_portfolio_securities(conn, portfolio_id)
+    total_value = sum(s["buy_price"] * s["units"] for s in securities)
+
+    if total_value == 0:
+        return []
 
     industry_map: dict[str, dict] = {}
     for sec in securities:
         industry = sec["industry"] or "Unknown"
+        market_value = sec["buy_price"] * sec["units"]
         if industry not in industry_map:
             industry_map[industry] = {"industry": industry, "weight": 0.0, "tickers": []}
-        industry_map[industry]["weight"] += sec["weight"]
+        industry_map[industry]["weight"] += market_value / total_value
         industry_map[industry]["tickers"].append(sec["ticker"])
 
     result = sorted(industry_map.values(), key=lambda x: x["weight"], reverse=True)
