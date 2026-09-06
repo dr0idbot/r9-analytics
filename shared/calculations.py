@@ -24,6 +24,7 @@ from shared.queries import get_candles_df
 logger = logging.getLogger(__name__)
 
 TRADING_DAYS_PER_YEAR = 252
+RISK_FREE_RATE = 0.05  # 5% annual — override via config or pass as param
 
 
 def portfolio_sector_exposure(conn: psycopg.Connection, portfolio_id: int) -> list[dict]:
@@ -421,18 +422,233 @@ def downside_ratio(conn: psycopg.Connection, ticker: str) -> float:
     return float(semi_vol / total_vol)
 
 
-def single_asset_risk(conn: psycopg.Connection, ticker: str) -> dict:
-    """Compute all single-asset risk metrics for a ticker.
+# --------------------------------------------------------------------------- #
+# Phase 2 — Risk-Adjusted Return Metrics
+# --------------------------------------------------------------------------- #
+
+def _annualized_return(conn: psycopg.Connection, ticker: str) -> float:
+    """Compute annualized return from daily close prices."""
+    df = get_candles_df(conn, ticker)
+    if df.empty or len(df) < 2:
+        return 0.0
+    total_return = df["close"].iloc[-1] / df["close"].iloc[0]
+    years = len(df) / TRADING_DAYS_PER_YEAR
+    if years <= 0 or total_return <= 0:
+        return 0.0
+    return float(total_return ** (1 / years) - 1)
+
+
+def sharpe_ratio(
+    conn: psycopg.Connection,
+    ticker: str,
+    risk_free_rate: float | None = None,
+) -> float:
+    """Compute Sharpe ratio — excess return per unit of total risk.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        risk_free_rate: Annual risk-free rate. Uses default if None.
+
+    Returns:
+        Sharpe ratio as a float.
+    """
+    rf = risk_free_rate if risk_free_rate is not None else RISK_FREE_RATE
+    vol = realized_volatility(conn, ticker)
+    if vol == 0:
+        return 0.0
+    ann_ret = _annualized_return(conn, ticker)
+    return float((ann_ret - rf) / vol)
+
+
+def sortino_ratio(
+    conn: psycopg.Connection,
+    ticker: str,
+    risk_free_rate: float | None = None,
+) -> float:
+    """Compute Sortino ratio — excess return per unit of downside risk.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        risk_free_rate: Annual risk-free rate. Uses default if None.
+
+    Returns:
+        Sortino ratio as a float.
+    """
+    rf = risk_free_rate if risk_free_rate is not None else RISK_FREE_RATE
+    semi = semi_deviation(conn, ticker)
+    if semi == 0:
+        return 0.0
+    ann_ret = _annualized_return(conn, ticker)
+    return float((ann_ret - rf) / semi)
+
+
+def calmar_ratio(conn: psycopg.Connection, ticker: str) -> float:
+    """Compute Calmar ratio — annualized return per unit of max drawdown.
 
     Args:
         conn: Database connection.
         ticker: Ticker symbol.
 
     Returns:
-        Dict with all Phase 1 risk metrics.
+        Calmar ratio as a float.
+    """
+    dd = max_drawdown(conn, ticker)
+    if dd == 0:
+        return 0.0
+    ann_ret = _annualized_return(conn, ticker)
+    return float(ann_ret / abs(dd))
+
+
+def treynor_ratio(
+    conn: psycopg.Connection,
+    ticker: str,
+    benchmark: str = "SPY",
+    risk_free_rate: float | None = None,
+) -> float:
+    """Compute Treynor ratio — excess return per unit of market risk (beta).
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        benchmark: Benchmark ticker for beta calculation.
+        risk_free_rate: Annual risk-free rate. Uses default if None.
+
+    Returns:
+        Treynor ratio as a float.
+    """
+    rf = risk_free_rate if risk_free_rate is not None else RISK_FREE_RATE
+    b = beta(conn, ticker, benchmark)
+    if b == 0:
+        return 0.0
+    ann_ret = _annualized_return(conn, ticker)
+    return float((ann_ret - rf) / b)
+
+
+def information_ratio(
+    conn: psycopg.Connection,
+    ticker: str,
+    benchmark: str = "SPY",
+) -> float:
+    """Compute information ratio — active return per unit of tracking error.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        benchmark: Benchmark ticker.
+
+    Returns:
+        Information ratio as a float.
+    """
+    te = tracking_error(conn, ticker, benchmark)
+    if te == 0:
+        return 0.0
+    active_return = _annualized_return(conn, ticker) - _annualized_return(conn, benchmark)
+    return float(active_return / te)
+
+
+def omega_ratio(
+    conn: psycopg.Connection,
+    ticker: str,
+    threshold: float = 0.0,
+) -> float:
+    """Compute Omega ratio — probability-weighted gain/loss ratio.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        threshold: Return threshold (default 0 = risk-free).
+
+    Returns:
+        Omega ratio. >1 means more upside than downside.
+    """
+    returns = daily_returns(conn, ticker)
+    if returns.empty:
+        return 0.0
+
+    gains = returns[returns > threshold] - threshold
+    losses = threshold - returns[returns <= threshold]
+
+    if losses.sum() == 0:
+        return float("inf") if not gains.empty else 0.0
+    return float(gains.sum() / losses.sum())
+
+
+def beta(
+    conn: psycopg.Connection,
+    ticker: str,
+    benchmark: str = "SPY",
+) -> float:
+    """Compute beta — sensitivity to benchmark movements.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        benchmark: Benchmark ticker.
+
+    Returns:
+        Beta as a float.
+    """
+    stock_returns = daily_returns(conn, ticker)
+    bench_returns = daily_returns(conn, benchmark)
+    if stock_returns.empty or bench_returns.empty:
+        return 0.0
+
+    aligned = pd.concat([stock_returns, bench_returns], axis=1).dropna()
+    if len(aligned) < 2:
+        return 0.0
+
+    cov = aligned.iloc[:, 0].cov(aligned.iloc[:, 1])
+    var = aligned.iloc[:, 1].var()
+    if var == 0:
+        return 0.0
+    return float(cov / var)
+
+
+def tracking_error(
+    conn: psycopg.Connection,
+    ticker: str,
+    benchmark: str = "SPY",
+) -> float:
+    """Compute tracking error — std dev of excess returns.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        benchmark: Benchmark ticker.
+
+    Returns:
+        Annualized tracking error.
+    """
+    stock_returns = daily_returns(conn, ticker)
+    bench_returns = daily_returns(conn, benchmark)
+    if stock_returns.empty or bench_returns.empty:
+        return 0.0
+
+    aligned = pd.concat([stock_returns, bench_returns], axis=1).dropna()
+    if len(aligned) < 2:
+        return 0.0
+
+    excess = aligned.iloc[:, 0] - aligned.iloc[:, 1]
+    return float(excess.std() * np.sqrt(TRADING_DAYS_PER_YEAR))
+
+
+def single_asset_risk(conn: psycopg.Connection, ticker: str) -> dict:
+    """Compute all single-asset risk metrics for a ticker.
+
+    Includes Phase 1 (risk) and Phase 2 (risk-adjusted return) metrics.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Dict with all risk and risk-adjusted metrics.
     """
     return {
         "ticker": ticker,
+        # Phase 1 — Risk
         "realized_volatility": realized_volatility(conn, ticker),
         "historical_var_95": historical_var(conn, ticker, confidence=0.95),
         "parametric_var_95": parametric_var(conn, ticker, confidence=0.95),
@@ -442,6 +658,14 @@ def single_asset_risk(conn: psycopg.Connection, ticker: str) -> dict:
         "max_drawdown": max_drawdown(conn, ticker),
         "semi_deviation": semi_deviation(conn, ticker),
         "downside_ratio": downside_ratio(conn, ticker),
+        # Phase 2 — Risk-Adjusted Return
+        "sharpe_ratio": sharpe_ratio(conn, ticker),
+        "sortino_ratio": sortino_ratio(conn, ticker),
+        "calmar_ratio": calmar_ratio(conn, ticker),
+        "treynor_ratio": treynor_ratio(conn, ticker),
+        "information_ratio": information_ratio(conn, ticker),
+        "omega_ratio": omega_ratio(conn, ticker),
+        "beta": beta(conn, ticker),
     }
 
 

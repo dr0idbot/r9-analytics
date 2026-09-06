@@ -24,7 +24,7 @@ from shared.queries import get_all_tickers, get_candles_df
 logger = logging.getLogger(__name__)
 
 st.title("Risk Analysis")
-st.markdown("Single-asset risk metrics: volatility, VaR, drawdown, and more.")
+st.markdown("Single-asset risk and risk-adjusted return metrics.")
 
 config = load_db_config()
 
@@ -64,8 +64,10 @@ except Exception as e:
 # ------------------------------------------------------------------ #
 # Risk metrics cards
 # ------------------------------------------------------------------ #
-st.subheader(f"Risk Metrics: {selected_ticker}")
+st.subheader(f"Metrics: {selected_ticker}")
 
+# Phase 1: Risk
+st.markdown("**Risk Metrics**")
 col1, col2, col3, col3b = st.columns(4)
 col1.metric("Realized Volatility", f"{risk['realized_volatility'] * 100:.2f}%")
 col2.metric("Parkinson Volatility", f"{risk['parkinson_volatility'] * 100:.2f}%")
@@ -80,6 +82,19 @@ col6.metric("CVaR (95%)", f"{risk['cvar_95'] * 100:.2f}%")
 col7, col8 = st.columns(2)
 col7.metric("Semi-Deviation", f"{risk['semi_deviation'] * 100:.2f}%")
 col8.metric("Downside Ratio", f"{risk['downside_ratio']:.4f}")
+
+# Phase 2: Risk-Adjusted Return
+st.markdown("**Risk-Adjusted Return Metrics**")
+ra1, ra2, ra3, ra4 = st.columns(4)
+ra1.metric("Sharpe Ratio", f"{risk['sharpe_ratio']:.4f}")
+ra2.metric("Sortino Ratio", f"{risk['sortino_ratio']:.4f}")
+ra3.metric("Calmar Ratio", f"{risk['calmar_ratio']:.4f}")
+ra4.metric("Omega Ratio", f"{risk['omega_ratio']:.4f}")
+
+ra5, ra6, ra7 = st.columns(3)
+ra5.metric("Treynor Ratio", f"{risk['treynor_ratio']:.4f}")
+ra6.metric("Information Ratio", f"{risk['information_ratio']:.4f}")
+ra7.metric("Beta", f"{risk['beta']:.4f}")
 
 st.markdown("---")
 
@@ -187,15 +202,24 @@ with chart_tab3:
 # ------------------------------------------------------------------ #
 with st.expander("All Metrics (Detailed)"):
     metrics_df = pd.DataFrame([
-        {"Metric": "Realized Volatility", "Value": risk["realized_volatility"], "Unit": "%", "Annualized": True},
-        {"Metric": "Parkinson Volatility", "Value": risk["parkinson_volatility"], "Unit": "%", "Annualized": True},
-        {"Metric": "Garman-Klass Volatility", "Value": risk["garman_klass_volatility"], "Unit": "%", "Annualized": True},
-        {"Metric": "Historical VaR (95%)", "Value": risk["historical_var_95"], "Unit": "%", "Annualized": False},
-        {"Metric": "Parametric VaR (95%)", "Value": risk["parametric_var_95"], "Unit": "%", "Annualized": False},
-        {"Metric": "CVaR (95%)", "Value": risk["cvar_95"], "Unit": "%", "Annualized": False},
-        {"Metric": "Max Drawdown", "Value": risk["max_drawdown"], "Unit": "%", "Annualized": False},
-        {"Metric": "Semi-Deviation", "Value": risk["semi_deviation"], "Unit": "%", "Annualized": True},
-        {"Metric": "Downside Ratio", "Value": risk["downside_ratio"], "Unit": "ratio", "Annualized": False},
+        # Phase 1: Risk
+        {"Category": "Risk", "Metric": "Realized Volatility", "Value": risk["realized_volatility"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Parkinson Volatility", "Value": risk["parkinson_volatility"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Garman-Klass Volatility", "Value": risk["garman_klass_volatility"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Historical VaR (95%)", "Value": risk["historical_var_95"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Parametric VaR (95%)", "Value": risk["parametric_var_95"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "CVaR (95%)", "Value": risk["cvar_95"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Max Drawdown", "Value": risk["max_drawdown"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Semi-Deviation", "Value": risk["semi_deviation"], "Unit": "%"},
+        {"Category": "Risk", "Metric": "Downside Ratio", "Value": risk["downside_ratio"], "Unit": "ratio"},
+        # Phase 2: Risk-Adjusted Return
+        {"Category": "Return", "Metric": "Sharpe Ratio", "Value": risk["sharpe_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Sortino Ratio", "Value": risk["sortino_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Calmar Ratio", "Value": risk["calmar_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Treynor Ratio", "Value": risk["treynor_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Information Ratio", "Value": risk["information_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Omega Ratio", "Value": risk["omega_ratio"], "Unit": "ratio"},
+        {"Category": "Return", "Metric": "Beta", "Value": risk["beta"], "Unit": "ratio"},
     ])
     styled_df(
         metrics_df,

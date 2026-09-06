@@ -333,6 +333,7 @@ def do_risk(conn: object) -> None:
     risk = single_asset_risk(conn, ticker)
 
     log.info("\n=== Risk Metrics: %s ===", risk["ticker"])
+    log.info("  --- Phase 1: Risk ---")
     log.info("  Realized Volatility:    %8.2f%%", risk["realized_volatility"] * 100)
     log.info("  Parkinson Volatility:   %8.2f%%", risk["parkinson_volatility"] * 100)
     log.info("  Garman-Klass Volatility:%8.2f%%", risk["garman_klass_volatility"] * 100)
@@ -342,6 +343,14 @@ def do_risk(conn: object) -> None:
     log.info("  Historical VaR (95%%):   %8.2f%%", risk["historical_var_95"] * 100)
     log.info("  Parametric VaR (95%%):   %8.2f%%", risk["parametric_var_95"] * 100)
     log.info("  CVaR (95%%):             %8.2f%%", risk["cvar_95"] * 100)
+    log.info("  --- Phase 2: Risk-Adjusted Return ---")
+    log.info("  Sharpe Ratio:           %8.4f", risk["sharpe_ratio"])
+    log.info("  Sortino Ratio:          %8.4f", risk["sortino_ratio"])
+    log.info("  Calmar Ratio:           %8.4f", risk["calmar_ratio"])
+    log.info("  Treynor Ratio:          %8.4f", risk["treynor_ratio"])
+    log.info("  Information Ratio:      %8.4f", risk["information_ratio"])
+    log.info("  Omega Ratio:            %8.4f", risk["omega_ratio"])
+    log.info("  Beta:                   %8.4f", risk["beta"])
 
 
 def do_portfolio_exposure(conn: object) -> None:

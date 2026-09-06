@@ -208,6 +208,7 @@ CREATE TABLE IF NOT EXISTS calc.risk_metrics (
     id              SERIAL PRIMARY KEY,
     ticker          TEXT NOT NULL,
     calc_time       TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- Phase 1: Risk
     realized_volatility     DOUBLE PRECISION,
     parkinson_volatility    DOUBLE PRECISION,
     garman_klass_volatility DOUBLE PRECISION,
@@ -217,6 +218,14 @@ CREATE TABLE IF NOT EXISTS calc.risk_metrics (
     historical_var_95       DOUBLE PRECISION,
     parametric_var_95       DOUBLE PRECISION,
     cvar_95                 DOUBLE PRECISION,
+    -- Phase 2: Risk-Adjusted Return
+    sharpe_ratio            DOUBLE PRECISION,
+    sortino_ratio           DOUBLE PRECISION,
+    calmar_ratio            DOUBLE PRECISION,
+    treynor_ratio           DOUBLE PRECISION,
+    information_ratio       DOUBLE PRECISION,
+    omega_ratio             DOUBLE PRECISION,
+    beta                    DOUBLE PRECISION,
     UNIQUE (ticker, calc_time)
 )
 """
@@ -226,19 +235,25 @@ INSERT INTO calc.risk_metrics
     (ticker, calc_time,
      realized_volatility, parkinson_volatility, garman_klass_volatility,
      semi_deviation, downside_ratio, max_drawdown,
-     historical_var_95, parametric_var_95, cvar_95)
+     historical_var_95, parametric_var_95, cvar_95,
+     sharpe_ratio, sortino_ratio, calmar_ratio,
+     treynor_ratio, information_ratio, omega_ratio, beta)
 VALUES
     (%(ticker)s, %(calc_time)s,
      %(realized_volatility)s, %(parkinson_volatility)s, %(garman_klass_volatility)s,
      %(semi_deviation)s, %(downside_ratio)s, %(max_drawdown)s,
-     %(historical_var_95)s, %(parametric_var_95)s, %(cvar_95)s)
+     %(historical_var_95)s, %(parametric_var_95)s, %(cvar_95)s,
+     %(sharpe_ratio)s, %(sortino_ratio)s, %(calmar_ratio)s,
+     %(treynor_ratio)s, %(information_ratio)s, %(omega_ratio)s, %(beta)s)
 """
 
 Q_GET_LATEST_RISK_METRICS = """
 SELECT ticker, calc_time,
        realized_volatility, parkinson_volatility, garman_klass_volatility,
        semi_deviation, downside_ratio, max_drawdown,
-       historical_var_95, parametric_var_95, cvar_95
+       historical_var_95, parametric_var_95, cvar_95,
+       sharpe_ratio, sortino_ratio, calmar_ratio,
+       treynor_ratio, information_ratio, omega_ratio, beta
 FROM calc.risk_metrics
 WHERE ticker = %s
 ORDER BY calc_time DESC
@@ -249,7 +264,9 @@ Q_GET_RISK_METRICS_HISTORY = """
 SELECT ticker, calc_time,
        realized_volatility, parkinson_volatility, garman_klass_volatility,
        semi_deviation, downside_ratio, max_drawdown,
-       historical_var_95, parametric_var_95, cvar_95
+       historical_var_95, parametric_var_95, cvar_95,
+       sharpe_ratio, sortino_ratio, calmar_ratio,
+       treynor_ratio, information_ratio, omega_ratio, beta
 FROM calc.risk_metrics
 WHERE ticker = %s
 ORDER BY calc_time DESC
@@ -412,6 +429,10 @@ def get_latest_risk_metrics(conn: psycopg.Connection, ticker: str) -> dict | Non
         "downside_ratio": row[6], "max_drawdown": row[7],
         "historical_var_95": row[8], "parametric_var_95": row[9],
         "cvar_95": row[10],
+        "sharpe_ratio": row[11], "sortino_ratio": row[12],
+        "calmar_ratio": row[13], "treynor_ratio": row[14],
+        "information_ratio": row[15], "omega_ratio": row[16],
+        "beta": row[17],
     }
 
 
@@ -426,6 +447,10 @@ def get_risk_metrics_history(conn: psycopg.Connection, ticker: str) -> list[dict
             "downside_ratio": r[6], "max_drawdown": r[7],
             "historical_var_95": r[8], "parametric_var_95": r[9],
             "cvar_95": r[10],
+            "sharpe_ratio": r[11], "sortino_ratio": r[12],
+            "calmar_ratio": r[13], "treynor_ratio": r[14],
+            "information_ratio": r[15], "omega_ratio": r[16],
+            "beta": r[17],
         }
         for r in rows
     ]
