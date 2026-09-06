@@ -25,7 +25,8 @@
 3. **Read `shared/ingest.py`** — yfinance fetch and sync logic.
 4. **Read `shared/queries.py`** — read-only queries for viewer/analytics.
 5. **Read `shared/calculations.py`** — risk metrics and exposure calculations.
-6. **Read `cli/main.py`** — the CLI interface.
+6. **Read `shared/portfolio.py`** — portfolio CRUD and currency validation.
+7. **Read `cli/main.py`** — the CLI interface.
 
 ---
 
@@ -103,14 +104,16 @@ You must build in this exact order. Each step depends on the previous.
 6. shared/logging_setup.py   ← coloured CLI output
 7. shared/queries.py         ← read-only queries for viewer/analytics
 8. shared/calculations.py    ← risk metrics and exposure calculations
-9. cli/__init__.py
-10. cli/main.py               ← CLI interface, imports from shared/
-11. dashboard/__init__.py
-12. dashboard/app.py          ← Streamlit entry point with sidebar nav
-13. dashboard/components/     ← UI helper functions (styled_df)
-14. dashboard/pages/          ← page files (ingestion, viewer, analytics, portfolio, risk)
-15. requirements.txt          ← all deps at latest versions
-16. requirements-cli.txt      ← original 3 deps only
+9. shared/portfolio.py       ← portfolio CRUD and currency validation
+10. cli/__init__.py
+11. cli/main.py               ← CLI interface, imports from shared/
+12. dashboard/__init__.py
+13. dashboard/app.py          ← Streamlit entry point with sidebar nav
+14. dashboard/components/     ← UI helper functions (styled_df)
+15. dashboard/pages/          ← page files (ingestion, viewer, analytics, portfolio, risk)
+16. requirements.txt          ← all deps at latest versions
+17. requirements-cli.txt      ← original 3 deps only
+18. pyproject.toml            ← package definition for editable install
 ```
 
 ---
@@ -212,7 +215,7 @@ st.success(f"Sync complete for {ticker}")
 
 Before marking any task as done, confirm:
 
-- [ ] `python -c "from shared import db, ingest, roster, queries, calculations"` works
+- [ ] `python -c "from shared import db, ingest, roster, queries, calculations, portfolio"` works
 - [ ] `grep -r "import streamlit" shared/` returns nothing
 - [ ] `grep -r "import plotly" shared/` returns nothing
 - [ ] All new functions have type hints
@@ -232,9 +235,11 @@ Before marking any task as done, confirm:
 | Import error in `shared/` | Check `shared/config.py` path resolution. Ensure `__init__.py` exists. |
 | CLI crashes on startup | Check `PYTHONPATH` or `python -m` invocation. Ensure `shared/` is importable. |
 | Dashboard can't find config | Check working directory. `dashboard/app.py` must resolve paths via `shared/config.py`. |
+| Dashboard can't find modules | Run `pip install -e .` to install package in editable mode. Requires `pyproject.toml`. |
 | yfinance returns empty data | Ticker may be delisted. Log warning, skip, continue. Do not crash. |
 | DB connection fails | Log error with full context (host, port, dbname). Raise to caller. |
 | Plotly chart won't render | Check DataFrame columns match expected schema. Log the DataFrame shape. |
+| `styled_df` fails with list | Convert list to DataFrame first: `pd.DataFrame(list_data)`. |
 
 ---
 

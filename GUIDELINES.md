@@ -10,7 +10,7 @@
 ### 1.1 Three-layer separation
 
 ```
-shared/   →  Business logic (DB, fetch, queries, config)
+shared/   →  Business logic (DB, fetch, queries, config, calculations, portfolio)
 cli/      →  CLI presentation (imports from shared/)
 dashboard/ →  Streamlit presentation (imports from shared/)
 ```
@@ -19,7 +19,7 @@ dashboard/ →  Streamlit presentation (imports from shared/)
 
 ### 1.2 CLI preservation
 
-`cli/main.py` provides the same CLI interface as the original implementation. All menu commands (`update`, `add`, `list`, `exit`) work identically.
+`cli/main.py` provides the same CLI interface as the original implementation. All menu commands (`update`, `add`, `list`, `exit`) work identically. Additional commands: `risk`, `scenario`, `prisk`, `pl`, `pn`, `pa`, `pr`, `pd`, `px`.
 
 ---
 
