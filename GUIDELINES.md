@@ -137,7 +137,12 @@ No manual commit/rollback/close.
 
 ### 3.3 Schema
 
-All tables live in the `market` schema. SQL constants must always reference `market.tablename`. Do not rely on `search_path`.
+All tables live in two schemas:
+
+- **`market`** — raw market data: `tickers`, `ticker_sync`, `daily_candles`, `dividends`, `splits`, `portfolios`, `portfolio_securities`
+- **`calc`** — persisted calculation results: `risk_metrics`
+
+SQL constants must always reference `schema.tablename`. Do not rely on `search_path`.
 
 ### 3.4 Idempotency
 
@@ -178,6 +183,8 @@ All dependencies must be pinned to **latest stable versions** as of project setu
 | `streamlit` | `>=1.63.0` | Web dashboard framework |
 | `plotly` | `>=7.0.0` | Interactive charts |
 | `pandas` | `>=3.0.5` | DataFrames for analytics |
+| `numpy` | `>=2.2.0` | Numerical operations |
+| `scipy` | `>=1.15.0` | Statistical functions (VaR z-scores) |
 
 **Rules:**
 - Never add a dependency without documenting it here and in `requirements.txt`.

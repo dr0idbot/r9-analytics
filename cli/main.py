@@ -321,6 +321,29 @@ def do_portfolio_delete(conn: object) -> None:
     log.info("Deleted portfolio '%s'", detail["name"])
 
 
+def do_risk(conn: object) -> None:
+    """Show single-asset risk metrics for a ticker."""
+    from shared.calculations import single_asset_risk
+
+    ticker = input("  Ticker symbol: ").strip().upper()
+    if not ticker:
+        log.error("Ticker cannot be empty.")
+        return
+
+    risk = single_asset_risk(conn, ticker)
+
+    log.info("\n=== Risk Metrics: %s ===", risk["ticker"])
+    log.info("  Realized Volatility:    %8.2f%%", risk["realized_volatility"] * 100)
+    log.info("  Parkinson Volatility:   %8.2f%%", risk["parkinson_volatility"] * 100)
+    log.info("  Garman-Klass Volatility:%8.2f%%", risk["garman_klass_volatility"] * 100)
+    log.info("  Semi-Deviation:         %8.2f%%", risk["semi_deviation"] * 100)
+    log.info("  Downside Ratio:         %8.4f", risk["downside_ratio"])
+    log.info("  Max Drawdown:           %8.2f%%", risk["max_drawdown"] * 100)
+    log.info("  Historical VaR (95%%):   %8.2f%%", risk["historical_var_95"] * 100)
+    log.info("  Parametric VaR (95%%):   %8.2f%%", risk["parametric_var_95"] * 100)
+    log.info("  CVaR (95%%):             %8.2f%%", risk["cvar_95"] * 100)
+
+
 def do_portfolio_exposure(conn: object) -> None:
     """Show portfolio exposure."""
     from shared.calculations import portfolio_exposure
@@ -374,6 +397,9 @@ MENU = """\033[1;34m
   pr            remove security from portfolio
   pd            delete portfolio
   px            show portfolio exposure
+
+=== analytics ===
+  risk          show single-asset risk metrics
 
   exit          quit
 \033[0m"""
@@ -434,6 +460,9 @@ def main() -> None:
         elif choice == "px":
             with get_connection(cfg) as conn:
                 do_portfolio_exposure(conn)
+        elif choice == "risk":
+            with get_connection(cfg) as conn:
+                do_risk(conn)
         elif choice == "":
             continue
         else:

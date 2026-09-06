@@ -200,6 +200,61 @@ Q_LIST_CURRENCIES = """
 SELECT DISTINCT currency FROM market.tickers WHERE currency IS NOT NULL ORDER BY currency
 """
 
+# --- calc schema (persisted calculation results) ---------------------------- #
+Q_CREATE_CALC_SCHEMA = "CREATE SCHEMA IF NOT EXISTS calc"
+
+Q_CREATE_RISK_METRICS = """
+CREATE TABLE IF NOT EXISTS calc.risk_metrics (
+    id              SERIAL PRIMARY KEY,
+    ticker          TEXT NOT NULL,
+    calc_time       TIMESTAMP NOT NULL DEFAULT NOW(),
+    realized_volatility     DOUBLE PRECISION,
+    parkinson_volatility    DOUBLE PRECISION,
+    garman_klass_volatility DOUBLE PRECISION,
+    semi_deviation          DOUBLE PRECISION,
+    downside_ratio          DOUBLE PRECISION,
+    max_drawdown            DOUBLE PRECISION,
+    historical_var_95       DOUBLE PRECISION,
+    parametric_var_95       DOUBLE PRECISION,
+    cvar_95                 DOUBLE PRECISION,
+    UNIQUE (ticker, calc_time)
+)
+"""
+
+Q_INSERT_RISK_METRICS = """
+INSERT INTO calc.risk_metrics
+    (ticker, calc_time,
+     realized_volatility, parkinson_volatility, garman_klass_volatility,
+     semi_deviation, downside_ratio, max_drawdown,
+     historical_var_95, parametric_var_95, cvar_95)
+VALUES
+    (%(ticker)s, %(calc_time)s,
+     %(realized_volatility)s, %(parkinson_volatility)s, %(garman_klass_volatility)s,
+     %(semi_deviation)s, %(downside_ratio)s, %(max_drawdown)s,
+     %(historical_var_95)s, %(parametric_var_95)s, %(cvar_95)s)
+"""
+
+Q_GET_LATEST_RISK_METRICS = """
+SELECT ticker, calc_time,
+       realized_volatility, parkinson_volatility, garman_klass_volatility,
+       semi_deviation, downside_ratio, max_drawdown,
+       historical_var_95, parametric_var_95, cvar_95
+FROM calc.risk_metrics
+WHERE ticker = %s
+ORDER BY calc_time DESC
+LIMIT 1
+"""
+
+Q_GET_RISK_METRICS_HISTORY = """
+SELECT ticker, calc_time,
+       realized_volatility, parkinson_volatility, garman_klass_volatility,
+       semi_deviation, downside_ratio, max_drawdown,
+       historical_var_95, parametric_var_95, cvar_95
+FROM calc.risk_metrics
+WHERE ticker = %s
+ORDER BY calc_time DESC
+"""
+
 
 # --------------------------------------------------------------------------- #
 # Thin helpers (use the constants above; keep call sites tidy)
@@ -331,3 +386,46 @@ def get_ticker_currency(conn: psycopg.Connection, ticker: str) -> str | None:
 def list_currencies(conn: psycopg.Connection) -> list[str]:
     """Return distinct currencies from the tickers table."""
     return [r[0] for r in conn.execute(Q_LIST_CURRENCIES).fetchall()]
+
+
+# --- calc helpers ----------------------------------------------------------- #
+def ensure_calc_schema(conn: psycopg.Connection) -> None:
+    """Create calc schema and tables if they do not exist."""
+    conn.execute(Q_CREATE_CALC_SCHEMA)
+    conn.execute(Q_CREATE_RISK_METRICS)
+
+
+def insert_risk_metrics(conn: psycopg.Connection, data: dict) -> None:
+    """Insert a risk metrics record."""
+    conn.execute(Q_INSERT_RISK_METRICS, data)
+
+
+def get_latest_risk_metrics(conn: psycopg.Connection, ticker: str) -> dict | None:
+    """Return the most recent risk metrics for a ticker, or None."""
+    row = conn.execute(Q_GET_LATEST_RISK_METRICS, (ticker,)).fetchone()
+    if row is None:
+        return None
+    return {
+        "ticker": row[0], "calc_time": row[1],
+        "realized_volatility": row[2], "parkinson_volatility": row[3],
+        "garman_klass_volatility": row[4], "semi_deviation": row[5],
+        "downside_ratio": row[6], "max_drawdown": row[7],
+        "historical_var_95": row[8], "parametric_var_95": row[9],
+        "cvar_95": row[10],
+    }
+
+
+def get_risk_metrics_history(conn: psycopg.Connection, ticker: str) -> list[dict]:
+    """Return all risk metrics records for a ticker, newest first."""
+    rows = conn.execute(Q_GET_RISK_METRICS_HISTORY, (ticker,)).fetchall()
+    return [
+        {
+            "ticker": r[0], "calc_time": r[1],
+            "realized_volatility": r[2], "parkinson_volatility": r[3],
+            "garman_klass_volatility": r[4], "semi_deviation": r[5],
+            "downside_ratio": r[6], "max_drawdown": r[7],
+            "historical_var_95": r[8], "parametric_var_95": r[9],
+            "cvar_95": r[10],
+        }
+        for r in rows
+    ]

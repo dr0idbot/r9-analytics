@@ -1,17 +1,29 @@
-"""Portfolio exposure calculations.
+"""Portfolio exposure and risk calculations.
 
-Computes sector and industry exposure from portfolio holdings.
+Computes sector/industry exposure and single-asset risk metrics.
 All functions accept a psycopg Connection — no global state.
 """
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
 
+import numpy as np
+import pandas as pd
 import psycopg
 
-from shared.db import get_portfolio as _get_portfolio, get_portfolio_securities
+from shared.db import (
+    ensure_calc_schema,
+    get_latest_risk_metrics,
+    get_portfolio as _get_portfolio,
+    get_portfolio_securities,
+    insert_risk_metrics,
+)
+from shared.queries import get_candles_df
 
 logger = logging.getLogger(__name__)
+
+TRADING_DAYS_PER_YEAR = 252
 
 
 def portfolio_sector_exposure(conn: psycopg.Connection, portfolio_id: int) -> list[dict]:
@@ -116,3 +128,355 @@ def portfolio_exposure(conn: psycopg.Connection, portfolio_id: int) -> dict:
         "sector": portfolio_sector_exposure(conn, portfolio_id),
         "industry": portfolio_industry_exposure(conn, portfolio_id),
     }
+
+
+# --------------------------------------------------------------------------- #
+# Phase 1 — Single-Asset Risk Metrics
+# --------------------------------------------------------------------------- #
+
+def daily_returns(
+    conn: psycopg.Connection,
+    ticker: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> pd.Series:
+    """Compute daily simple returns from close prices.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        start_date: Optional start date filter.
+        end_date: Optional end date filter.
+
+    Returns:
+        Series of daily returns indexed by trade_date.
+    """
+    df = get_candles_df(conn, ticker, start_date, end_date)
+    if df.empty or len(df) < 2:
+        return pd.Series(dtype=float)
+    return df["close"].pct_change().dropna()
+
+
+def realized_volatility(
+    conn: psycopg.Connection,
+    ticker: str,
+    window: int | None = None,
+    annualize: bool = True,
+) -> float:
+    """Compute realized volatility (standard deviation of returns).
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        window: If None, use all data. If int, use last N periods.
+        annualize: If True, multiply by sqrt(252).
+
+    Returns:
+        Volatility as a float.
+    """
+    returns = daily_returns(conn, ticker)
+    if returns.empty:
+        return 0.0
+
+    if window is not None:
+        returns = returns.tail(window)
+
+    vol = returns.std()
+    if annualize:
+        vol *= np.sqrt(TRADING_DAYS_PER_YEAR)
+    return float(vol)
+
+
+def historical_var(
+    conn: psycopg.Connection,
+    ticker: str,
+    confidence: float = 0.95,
+    horizon: int = 1,
+) -> float:
+    """Compute Historical Value at Risk.
+
+    Uses empirical percentile of historical returns.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        confidence: Confidence level (e.g. 0.95 for 95%).
+        horizon: Number of days for VaR projection.
+
+    Returns:
+        VaR as a negative number (e.g. -0.03 means 3% max loss).
+    """
+    returns = daily_returns(conn, ticker)
+    if returns.empty:
+        return 0.0
+
+    # Scale for horizon
+    if horizon > 1:
+        returns = returns / np.sqrt(horizon)  # Scale to 1-day equivalent
+
+    percentile = (1 - confidence) * 100
+    var = np.percentile(returns, percentile)
+    return float(var)
+
+
+def parametric_var(
+    conn: psycopg.Connection,
+    ticker: str,
+    confidence: float = 0.95,
+    horizon: int = 1,
+) -> float:
+    """Compute Parametric VaR (variance-covariance method).
+
+    Assumes normal distribution of returns.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        confidence: Confidence level (e.g. 0.95 for 95%).
+        horizon: Number of days for VaR projection.
+
+    Returns:
+        VaR as a negative number.
+    """
+    returns = daily_returns(conn, ticker)
+    if returns.empty:
+        return 0.0
+
+    from scipy import stats
+
+    mean = returns.mean()
+    std = returns.std()
+
+    # Scale for horizon
+    if horizon > 1:
+        mean *= horizon
+        std *= np.sqrt(horizon)
+
+    z_score = stats.norm.ppf(1 - confidence)
+    var = mean + z_score * std
+    return float(var)
+
+
+def cvar(
+    conn: psycopg.Connection,
+    ticker: str,
+    confidence: float = 0.95,
+) -> float:
+    """Compute Conditional VaR (Expected Shortfall).
+
+    Mean of all returns that are worse than VaR.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        confidence: Confidence level (e.g. 0.95 for 95%).
+
+    Returns:
+        CVaR as a negative number (always worse than VaR).
+    """
+    returns = daily_returns(conn, ticker)
+    if returns.empty:
+        return 0.0
+
+    var_threshold = historical_var(conn, ticker, confidence)
+    tail_returns = returns[returns <= var_threshold]
+
+    if tail_returns.empty:
+        return var_threshold
+    return float(tail_returns.mean())
+
+
+def parkinson_volatility(
+    conn: psycopg.Connection,
+    ticker: str,
+    annualize: bool = True,
+) -> float:
+    """Compute Parkinson volatility using high/low price range.
+
+    More accurate than close-only volatility.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        annualize: If True, multiply by sqrt(252).
+
+    Returns:
+        Parkinson volatility as a float.
+    """
+    df = get_candles_df(conn, ticker)
+    if df.empty or len(df) < 2:
+        return 0.0
+
+    log_hl = np.log(df["high"] / df["low"])
+    parkinson_var = (log_hl ** 2).sum() / (4 * len(df) * np.log(2))
+    vol = np.sqrt(parkinson_var)
+
+    if annualize:
+        vol *= np.sqrt(TRADING_DAYS_PER_YEAR)
+    return float(vol)
+
+
+def garman_klass_volatility(
+    conn: psycopg.Connection,
+    ticker: str,
+    annualize: bool = True,
+) -> float:
+    """Compute Garman-Klass volatility using OHLC data.
+
+    Most efficient OHLC-based volatility estimator.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        annualize: If True, multiply by sqrt(252).
+
+    Returns:
+        Garman-Klass volatility as a float.
+    """
+    df = get_candles_df(conn, ticker)
+    if df.empty or len(df) < 2:
+        return 0.0
+
+    log_hl = np.log(df["high"] / df["low"])
+    log_co = np.log(df["close"] / df["open"])
+
+    gk_var = 0.5 * (log_hl ** 2).sum() - (2 * np.log(2) - 1) * (log_co ** 2).sum()
+    gk_var /= len(df)
+    vol = np.sqrt(max(gk_var, 0))
+
+    if annualize:
+        vol *= np.sqrt(TRADING_DAYS_PER_YEAR)
+    return float(vol)
+
+
+def max_drawdown(conn: psycopg.Connection, ticker: str) -> float:
+    """Compute maximum drawdown from peak.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Maximum drawdown as a negative number (e.g. -0.35 for 35% drawdown).
+    """
+    df = get_candles_df(conn, ticker)
+    if df.empty or len(df) < 2:
+        return 0.0
+
+    cummax = df["close"].cummax()
+    drawdown = (df["close"] - cummax) / cummax
+    return float(drawdown.min())
+
+
+def semi_deviation(
+    conn: psycopg.Connection,
+    ticker: str,
+    annualize: bool = True,
+) -> float:
+    """Compute semi-deviation (downside volatility).
+
+    Only considers negative returns.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+        annualize: If True, multiply by sqrt(252).
+
+    Returns:
+        Semi-deviation as a float.
+    """
+    returns = daily_returns(conn, ticker)
+    if returns.empty:
+        return 0.0
+
+    negative_returns = returns[returns < 0]
+    if negative_returns.empty:
+        return 0.0
+
+    semi_var = (negative_returns ** 2).sum() / len(returns)
+    semi_vol = np.sqrt(semi_var)
+
+    if annualize:
+        semi_vol *= np.sqrt(TRADING_DAYS_PER_YEAR)
+    return float(semi_vol)
+
+
+def downside_ratio(conn: psycopg.Connection, ticker: str) -> float:
+    """Compute downside ratio (semi-deviation / total volatility).
+
+    Proportion of total risk that is downside.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Ratio between 0 and 1. Higher = more downside risk.
+    """
+    total_vol = realized_volatility(conn, ticker, annualize=False)
+    semi_vol = semi_deviation(conn, ticker, annualize=False)
+
+    if total_vol == 0:
+        return 0.0
+    return float(semi_vol / total_vol)
+
+
+def single_asset_risk(conn: psycopg.Connection, ticker: str) -> dict:
+    """Compute all single-asset risk metrics for a ticker.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Dict with all Phase 1 risk metrics.
+    """
+    return {
+        "ticker": ticker,
+        "realized_volatility": realized_volatility(conn, ticker),
+        "historical_var_95": historical_var(conn, ticker, confidence=0.95),
+        "parametric_var_95": parametric_var(conn, ticker, confidence=0.95),
+        "cvar_95": cvar(conn, ticker, confidence=0.95),
+        "parkinson_volatility": parkinson_volatility(conn, ticker),
+        "garman_klass_volatility": garman_klass_volatility(conn, ticker),
+        "max_drawdown": max_drawdown(conn, ticker),
+        "semi_deviation": semi_deviation(conn, ticker),
+        "downside_ratio": downside_ratio(conn, ticker),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Persist / Load
+# --------------------------------------------------------------------------- #
+
+def save_risk_metrics(conn: psycopg.Connection, ticker: str) -> dict:
+    """Compute and persist risk metrics for a ticker.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        The saved metrics dict with calc_time.
+    """
+    ensure_calc_schema(conn)
+
+    metrics = single_asset_risk(conn, ticker)
+    metrics["calc_time"] = datetime.now()
+
+    insert_risk_metrics(conn, metrics)
+    logger.info("Saved risk metrics for %s at %s", ticker, metrics["calc_time"])
+    return metrics
+
+
+def load_latest_risk_metrics(conn: psycopg.Connection, ticker: str) -> dict | None:
+    """Load the most recent persisted risk metrics for a ticker.
+
+    Args:
+        conn: Database connection.
+        ticker: Ticker symbol.
+
+    Returns:
+        Dict with risk metrics and calc_time, or None if not found.
+    """
+    return get_latest_risk_metrics(conn, ticker)

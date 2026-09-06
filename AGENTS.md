@@ -24,7 +24,8 @@
 2. **Read `shared/db.py`** — all SQL constants and DB connection logic.
 3. **Read `shared/ingest.py`** — yfinance fetch and sync logic.
 4. **Read `shared/queries.py`** — read-only queries for viewer/analytics.
-5. **Read `cli/main.py`** — the CLI interface.
+5. **Read `shared/calculations.py`** — risk metrics and exposure calculations.
+6. **Read `cli/main.py`** — the CLI interface.
 
 ---
 
@@ -96,20 +97,20 @@ You must build in this exact order. Each step depends on the previous.
 ```
 1. shared/__init__.py
 2. shared/config.py          ← path resolution, env var support
-3. shared/db.py              ← copy from src/db.py, update imports via config.py
-4. shared/ingest.py          ← copy from src/ingest.py, update imports
-5. shared/roster.py          ← copy from src/roster.py, update path via config.py
-6. shared/logging_setup.py   ← direct copy, no changes
-7. shared/queries.py         ← NEW: read-only queries for viewer/analytics
-8. cli/__init__.py
-9. cli/main.py               ← refactor from src/main.py, import from shared/
-10. dashboard/__init__.py
-11. dashboard/app.py         ← Streamlit entry point with sidebar nav
-12. dashboard/components/    ← UI helper functions
-13. dashboard/pages/         ← the three page files
-14. requirements.txt         ← update with all deps at latest versions
-15. requirements-cli.txt     ← original 3 deps only
-16. run_cli.sh, run_dashboard.sh
+3. shared/db.py              ← SQL constants, connection, thin helpers
+4. shared/ingest.py          ← yfinance fetch and sync logic
+5. shared/roster.py          ← ticker roster management
+6. shared/logging_setup.py   ← coloured CLI output
+7. shared/queries.py         ← read-only queries for viewer/analytics
+8. shared/calculations.py    ← risk metrics and exposure calculations
+9. cli/__init__.py
+10. cli/main.py               ← CLI interface, imports from shared/
+11. dashboard/__init__.py
+12. dashboard/app.py          ← Streamlit entry point with sidebar nav
+13. dashboard/components/     ← UI helper functions (styled_df)
+14. dashboard/pages/          ← page files (ingestion, viewer, analytics, portfolio, risk)
+15. requirements.txt          ← all deps at latest versions
+16. requirements-cli.txt      ← original 3 deps only
 ```
 
 ---
@@ -195,7 +196,7 @@ st.success(f"Sync complete for {ticker}")
 
 Before marking any task as done, confirm:
 
-- [ ] `python -c "from shared import db, ingest, roster, queries"` works
+- [ ] `python -c "from shared import db, ingest, roster, queries, calculations"` works
 - [ ] `grep -r "import streamlit" shared/` returns nothing
 - [ ] `grep -r "import plotly" shared/` returns nothing
 - [ ] All new functions have type hints
