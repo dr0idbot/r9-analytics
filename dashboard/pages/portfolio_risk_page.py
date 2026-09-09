@@ -104,9 +104,9 @@ if risk:
         styled_df(
             pd.DataFrame(risk["value_contributions"]),
             column_config={
-                "weight": st.column_config.NumberColumn("Weight", format="%.2%%", alignment="right"),
-                "annual_return": st.column_config.NumberColumn("Annual Return", format="%.2%%", alignment="right"),
-                "contribution": st.column_config.NumberColumn("Contribution", format="%.4%%", alignment="right"),
+                "weight": st.column_config.NumberColumn("Weight", format="%.2f%%", alignment="right"),
+                "annual_return": st.column_config.NumberColumn("Annual Return", format="%.2f%%", alignment="right"),
+                "contribution": st.column_config.NumberColumn("Contribution", format="%.4f%%", alignment="right"),
             },
             width="stretch",
             hide_index=True,
