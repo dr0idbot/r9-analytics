@@ -101,7 +101,7 @@ if risk:
     # ── Value Contributions ───────────────────────────────────────── #
     if risk["value_contributions"]:
         st.markdown("#### Value Contributions")
-        vc_df = styled_df(
+        styled_df(
             pd.DataFrame(risk["value_contributions"]),
             column_config={
                 "weight": st.column_config.NumberColumn("Weight", format="%.2%%", alignment="right"),
@@ -111,7 +111,6 @@ if risk:
             width="stretch",
             hide_index=True,
         )
-        st.dataframe(vc_df, use_container_width=True, hide_index=True)
 
     # ── Save ──────────────────────────────────────────────────────── #
     st.divider()
