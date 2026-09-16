@@ -11,4 +11,3 @@ build/
 *.db
 .opencode/
 config/dbconf.yaml
-plan/
