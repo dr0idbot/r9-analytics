@@ -31,7 +31,7 @@ def get_connection(config: dict | None = None) -> Iterator[psycopg.Connection]:
         An open psycopg Connection.
     """
     cfg = config or load_db_config()
-    logger.debug("Connecting to %s@%s:%s/%s", cfg["user"], cfg["host"], cfg["port"], cfg["dbname"])
+    logger.debug("Connecting to database")
     conn = psycopg.connect(
         host=cfg["host"],
         port=cfg["port"],
