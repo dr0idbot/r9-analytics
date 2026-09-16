@@ -77,9 +77,9 @@ try:
         summary = get_sync_summary(conn)
         all_tickers = get_all_tickers(conn)
         tickers_with_stats = get_tickers_with_stats(conn)
-except Exception as e:
-    st.error(f"Failed to load data: {e}")
-    logger.error("Failed to load data: %s", e)
+except Exception:
+    logger.exception("Failed to load data")
+    st.error("Unable to load data. Check server logs for details.")
     st.stop()
 
 currency_map: dict[str, str] = {t["ticker"]: t.get("currency") or "USD" for t in all_tickers}
@@ -143,9 +143,9 @@ with tab_compare:
                 prices_df = get_multi_ticker_candles_df(
                     conn, selected_tickers, start_date, end_date
                 )
-        except Exception as e:
-            st.error(f"Failed to load comparison data: {e}")
-            logger.error("Failed to load comparison data: %s", e)
+        except Exception:
+            logger.exception("Failed to load comparison data")
+            st.error("Unable to load comparison data. Check server logs for details.")
             prices_df = pd.DataFrame()
 
         if prices_df.empty:

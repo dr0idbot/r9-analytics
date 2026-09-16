@@ -31,9 +31,9 @@ config = load_db_config()
 try:
     with get_connection(config) as conn:
         portfolios = list_portfolios(conn)
-except Exception as e:
-    st.error(f"Failed to load portfolios: {e}")
-    logger.error("Failed to load portfolios: %s", e)
+except Exception:
+    logger.exception("Failed to load portfolios")
+    st.error("Unable to load portfolios. Check server logs for details.")
     st.stop()
 
 if not portfolios:
@@ -50,9 +50,9 @@ try:
     with get_connection(config) as conn:
         detail = get_portfolio_detail(conn, selected_id)
         exposure = portfolio_exposure(conn, selected_id)
-except Exception as e:
-    st.error(f"Failed to load portfolio: {e}")
-    logger.error("Failed to load portfolio: %s", e)
+except Exception:
+    logger.exception("Failed to load portfolio data")
+    st.error("Unable to load portfolio data. Check server logs for details.")
     st.stop()
 
 if detail is None:

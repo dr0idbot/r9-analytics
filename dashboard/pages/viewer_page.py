@@ -87,9 +87,9 @@ config = load_db_config()
 try:
     with get_connection(config) as conn:
         all_tickers = get_all_tickers(conn)
-except Exception as e:
-    st.error(f"Failed to load tickers: {e}")
-    logger.error("Failed to load tickers: %s", e)
+except Exception:
+    logger.exception("Failed to load tickers")
+    st.error("Unable to load tickers. Check server logs for details.")
     st.stop()
 
 if not all_tickers:
@@ -119,9 +119,9 @@ try:
         candles_df = get_candles_df(conn, selected_ticker, start_date, end_date)
         dividends = get_dividends(conn, selected_ticker)
         splits = get_splits(conn, selected_ticker)
-except Exception as e:
-    st.error(f"Failed to load data for {selected_ticker}: {e}")
-    logger.error("Failed to load data for %s: %s", selected_ticker, e)
+except Exception:
+    logger.exception("Failed to load data for %s", selected_ticker)
+    st.error(f"Unable to load data for **{selected_ticker}**. Check server logs for details.")
     st.stop()
 
 if ticker_detail:

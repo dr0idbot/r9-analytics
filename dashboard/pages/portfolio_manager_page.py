@@ -40,9 +40,9 @@ try:
     with get_connection(config) as conn:
         portfolios = list_portfolios(conn)
         currencies = list_currencies(conn)
-except Exception as e:
-    st.error(f"Failed to load data: {e}")
-    logger.error("Failed to load data: %s", e)
+except Exception:
+    logger.exception("Failed to load portfolio data")
+    st.error("Unable to load portfolio data. Check server logs for details.")
     st.stop()
 
 # ------------------------------------------------------------------ #
@@ -61,9 +61,9 @@ with st.sidebar:
                 pid = create_portfolio(conn, name, currency)
             st.success(f"Created portfolio '{name}' (id={pid})")
             st.rerun()
-        except Exception as e:
-            st.error(f"Failed to create portfolio: {e}")
-            logger.error("Failed to create portfolio: %s", e)
+        except Exception:
+            logger.exception("Failed to create portfolio")
+            st.error("Unable to create portfolio. Check server logs for details.")
 
 # ------------------------------------------------------------------ #
 # Main content
@@ -81,9 +81,9 @@ selected_id = portfolio_options[selected_label]
 try:
     with get_connection(config) as conn:
         detail = get_portfolio_detail(conn, selected_id)
-except Exception as e:
-    st.error(f"Failed to load portfolio: {e}")
-    logger.error("Failed to load portfolio: %s", e)
+except Exception:
+    logger.exception("Failed to load portfolio detail")
+    st.error("Unable to load portfolio. Check server logs for details.")
     st.stop()
 
 if detail is None:
@@ -146,8 +146,9 @@ with tab_securities:
                     remove_security(conn, selected_id, remove_ticker)
                 st.success(f"Removed {remove_ticker}")
                 st.rerun()
-            except Exception as e:
-                st.error(f"Failed: {e}")
+            except Exception:
+                logger.exception("Failed to remove security")
+                st.error("Unable to remove security. Check server logs for details.")
 
         # Delete portfolio
         st.subheader("Danger Zone")
@@ -165,8 +166,9 @@ with tab_securities:
                         st.success(f"Deleted portfolio '{detail['name']}'")
                         st.session_state["confirm_delete"] = False
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Failed: {e}")
+                    except Exception:
+                        logger.exception("Failed to delete portfolio")
+                        st.error("Unable to delete portfolio. Check server logs for details.")
             with col2:
                 if st.button("Cancel"):
                     st.session_state["confirm_delete"] = False
@@ -184,9 +186,9 @@ with tab_add:
             all_tickers = conn.execute(
                 "SELECT ticker, name, sector, currency FROM market.tickers ORDER BY ticker"
             ).fetchall()
-    except Exception as e:
-        st.error(f"Failed to load tickers: {e}")
-        logger.error("Failed to load tickers: %s", e)
+    except Exception:
+        logger.exception("Failed to load tickers")
+        st.error("Unable to load tickers. Check server logs for details.")
         all_tickers = []
 
     # Filter tickers by portfolio currency
@@ -252,9 +254,9 @@ with tab_exposure:
         try:
             with get_connection(config) as conn:
                 exposure = portfolio_exposure(conn, selected_id)
-        except Exception as e:
-            st.error(f"Failed to calculate exposure: {e}")
-            logger.error("Failed to calculate exposure: %s", e)
+        except Exception:
+            logger.exception("Failed to calculate exposure")
+            st.error("Unable to calculate exposure. Check server logs for details.")
             st.stop()
 
         # Sector exposure

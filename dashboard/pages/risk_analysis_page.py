@@ -32,9 +32,9 @@ config = load_db_config()
 try:
     with get_connection(config) as conn:
         all_tickers = get_all_tickers(conn)
-except Exception as e:
-    st.error(f"Failed to load tickers: {e}")
-    logger.error("Failed to load tickers: %s", e)
+except Exception:
+    logger.exception("Failed to load tickers")
+    st.error("Unable to load tickers. Check server logs for details.")
     st.stop()
 
 if not all_tickers:
@@ -56,9 +56,9 @@ try:
         risk = single_asset_risk(conn, selected_ticker)
         returns = daily_returns(conn, selected_ticker)
         candles_df = get_candles_df(conn, selected_ticker)
-except Exception as e:
-    st.error(f"Failed to compute risk metrics: {e}")
-    logger.error("Failed to compute risk metrics for %s: %s", selected_ticker, e)
+except Exception:
+    logger.exception("Failed to compute risk metrics for %s", selected_ticker)
+    st.error(f"Unable to compute risk metrics for **{selected_ticker}**. Check server logs for details.")
     st.stop()
 
 # ------------------------------------------------------------------ #

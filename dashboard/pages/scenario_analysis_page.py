@@ -1,6 +1,8 @@
 """Scenario Analysis page — stress testing and scenario-based risk."""
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -12,13 +14,20 @@ from shared.queries import get_all_tickers
 from shared.calculations import scenario_analysis
 from dashboard.components import styled_df
 
+logger = logging.getLogger(__name__)
+
 st.title("Scenario Analysis")
 
 config = load_db_config()
 
 # ── Ticker Selection ──────────────────────────────────────────────── #
-with get_connection(config) as conn:
-    tickers = get_all_tickers(conn)
+try:
+    with get_connection(config) as conn:
+        tickers = get_all_tickers(conn)
+except Exception:
+    logger.exception("Failed to load tickers")
+    st.error("Unable to load tickers. Check server logs for details.")
+    st.stop()
 
 if not tickers:
     st.info("No tickers in database.")
@@ -30,9 +39,13 @@ selected_ticker = st.selectbox("Select Ticker", sorted(ticker_options))
 # ── Compute ───────────────────────────────────────────────────────── #
 if st.button("Run Scenario Analysis", type="primary"):
     with st.spinner("Running scenario analysis..."):
-        with get_connection(config) as conn:
-            result = scenario_analysis(conn, selected_ticker)
-        st.session_state["scenario_result"] = result
+        try:
+            with get_connection(config) as conn:
+                result = scenario_analysis(conn, selected_ticker)
+            st.session_state["scenario_result"] = result
+        except Exception:
+            logger.exception("Failed to run scenario analysis for %s", selected_ticker)
+            st.error("Unable to run scenario analysis. Check server logs for details.")
 
 result = st.session_state.get("scenario_result")
 

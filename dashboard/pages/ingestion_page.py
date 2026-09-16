@@ -37,9 +37,9 @@ with tab_roster:
     try:
         with get_connection(config) as conn:
             tickers = get_tickers_with_stats(conn)
-    except Exception as e:
-        st.error(f"Failed to load roster: {e}")
-        logger.error("Failed to load roster: %s", e)
+    except Exception:
+        logger.exception("Failed to load roster")
+        st.error("Unable to load roster. Check server logs for details.")
         tickers = []
 
     if not tickers:
@@ -113,10 +113,10 @@ with tab_add:
                 )
                 st.rerun()
 
-            except Exception as e:
+            except Exception:
                 status.update(label=f"Failed to add {symbol}", state="error")
-                st.error(f"Failed to add **{symbol}**: {e}")
-                logger.error("Failed to add %s: %s", symbol, e)
+                st.error(f"Failed to add **{symbol}**. Check server logs for details.")
+                logger.exception("Failed to add %s", symbol)
 
 # ------------------------------------------------------------------ #
 # Tab 3: Sync
@@ -152,11 +152,11 @@ with tab_sync:
                             f"**{sym}**: +{stats['candles']} candles, "
                             f"+{stats['dividends']} div, +{stats['splits']} splits"
                         )
-                except Exception as e:
+                except Exception:
                     failed.append(sym)
                     with results_area:
-                        st.error(f"**{sym}**: {e}")
-                    logger.error("Sync failed for %s: %s", sym, e)
+                        st.error(f"**{sym}**: Sync failed. Check server logs.")
+                    logger.exception("Sync failed for %s", sym)
 
             progress.progress(1.0)
             status_area.empty()
