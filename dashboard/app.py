@@ -16,6 +16,13 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+with st.sidebar:
+    st.warning(
+        "**Security Notice**\n\n"
+        "This dashboard has no authentication. "
+        "Do not expose to untrusted networks."
+    )
+
 pg = st.navigation(
     {
         "Market Data": [

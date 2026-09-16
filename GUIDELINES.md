@@ -369,3 +369,46 @@ Tests use a test database (`r9_analytics_test`) or mocked connections. Never run
 - Environment-variable-based config (12-factor)
 - Concurrent write safety for tickers.csv (file lock or DB-only roster)
 - Scheduled ingestion (cron / APScheduler)
+
+---
+
+## 13. Security Boundary
+
+### 13.1 Deployment model
+
+This application is designed for **localhost or trusted-network deployment only**. The Streamlit dashboard and CLI have no built-in authentication or authorization.
+
+### 13.2 What this means
+
+- **Do not** expose the Streamlit port (default 8501) to the public internet without an authenticated reverse proxy.
+- **Do not** expose the PostgreSQL port to untrusted networks.
+- Anyone who can reach the Streamlit UI can perform all write operations: add tickers, sync data, create/delete portfolios, add/remove securities.
+
+### 13.3 If you need network exposure
+
+Put an authentication layer in front of Streamlit:
+
+- **Option A:** `streamlit-authenticator` for simple username/password.
+- **Option B:** OAuth2 proxy (e.g., `oauth2-proxy`) in front of Streamlit.
+- **Option C:** VPN/WireGuard tunnel — only trusted devices can reach the dashboard.
+
+Separate read-only analytics from administrative operations if possible.
+
+### 13.4 Dashboard warning
+
+When no authentication is configured, the dashboard displays a warning banner in the sidebar. This is a visual reminder, not a security control.
+
+### 13.5 Exception messages
+
+Dashboard pages must never expose raw exception messages to users. Catch exceptions from `shared/` and show safe, generic error messages. Log the full exception server-side for debugging.
+
+```python
+# BAD
+except Exception as e:
+    st.error(f"Failed: {e}")
+
+# GOOD
+except Exception:
+    logger.exception("Failed to load portfolio data")
+    st.error("Unable to load portfolio data. Check server logs for details.")
+```
