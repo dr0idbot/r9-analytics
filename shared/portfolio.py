@@ -96,6 +96,8 @@ def add_security(
         raise PortfolioError(f"buy_price must be positive, got {buy_price}")
     if not isinstance(units, int) or units <= 0:
         raise PortfolioError(f"units must be a positive integer, got {units}")
+    if buy_date > date.today():
+        raise PortfolioError(f"buy_date cannot be in the future: {buy_date}")
 
     _validate_currency_match(conn, portfolio["currency"], ticker)
     upsert_portfolio_security(conn, portfolio_id, ticker.upper(), buy_price, buy_date, units)
